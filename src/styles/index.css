@@ -1,0 +1,27 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+button:not(:disabled) {
+  transition-property: transform, background-color, border-color, color, box-shadow, filter, opacity;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(0.98);
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:not(:disabled) {
+    transition-duration: 1ms;
+  }
+
+  button:active:not(:disabled) {
+    transform: none;
+  }
+}
