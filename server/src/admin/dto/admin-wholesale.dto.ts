@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsEmail, IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsEmail, IsEnum, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 import { WholesaleAccountStatus, WholesaleOrderStatus, WholesalePaymentStatus } from '@prisma/client';
 
 export class WholesaleListQueryDto {
@@ -17,6 +17,7 @@ export class UpsertWholesaleAccountDto {
   @IsString() @MaxLength(500) billingAddress!: string;
   @IsString() @MaxLength(500) shippingAddress!: string;
   @IsString() @MaxLength(40) priceTier!: string;
+  @IsInt() @Min(0) @Max(100) discountPercent!: number;
   @IsInt() @Min(0) @Max(365) paymentTermDays!: number;
   @IsInt() @Min(0) creditLimitMinor!: number;
   @IsInt() @Min(0) minimumOrderMinor!: number;
@@ -42,4 +43,14 @@ export class CreateWholesaleOrderDto {
 export class UpdateWholesaleOrderDto {
   @IsEnum(WholesaleOrderStatus) status!: WholesaleOrderStatus;
   @IsEnum(WholesalePaymentStatus) paymentStatus!: WholesalePaymentStatus;
+}
+
+export class ReviewWholesaleApplicationDto {
+  @IsIn(['approve', 'reject']) decision!: "approve" | "reject";
+  @IsOptional() @IsString() @MaxLength(1000) adminNote?: string;
+  @IsOptional() @IsString() @MaxLength(40) priceTier?: string;
+  @IsOptional() @IsInt() @Min(0) @Max(100) discountPercent?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(365) paymentTermDays?: number;
+  @IsOptional() @IsInt() @Min(0) creditLimitMinor?: number;
+  @IsOptional() @IsInt() @Min(0) minimumOrderMinor?: number;
 }

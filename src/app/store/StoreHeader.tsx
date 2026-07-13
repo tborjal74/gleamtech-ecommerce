@@ -280,6 +280,7 @@ export function StoreHeader({ cartItems, onNavigate, onRemoveFromCart, onUpdateC
                 </button>
               </>
             ) : (
+              <>
               <button
                 onClick={() => onNavigate("listing")}
                 className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground transition-all duration-150 hover:scale-[1.02] hover:bg-secondary hover:text-foreground active:scale-[0.98] xl:px-3"
@@ -287,6 +288,8 @@ export function StoreHeader({ cartItems, onNavigate, onRemoveFromCart, onUpdateC
                 <Store size={15} />
                 Store
               </button>
+              {user && <button onClick={() => onNavigate("wholesale")} className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground transition-all duration-150 hover:bg-secondary hover:text-foreground"><Building2 size={15}/> Wholesale</button>}
+              </>
             )}
           </nav>
 
@@ -507,6 +510,7 @@ export function StoreHeader({ cartItems, onNavigate, onRemoveFromCart, onUpdateC
                     </button>
                   </>
                 ) : (
+                  <>
                   <button
                     onClick={() => { onNavigate("listing"); setMobileOpen(false); }}
                     className="w-full text-left px-4 py-3 text-sm font-medium text-foreground hover:bg-secondary rounded-xl transition-colors flex items-center gap-3"
@@ -514,6 +518,8 @@ export function StoreHeader({ cartItems, onNavigate, onRemoveFromCart, onUpdateC
                     <Store size={16} className="text-muted-foreground" />
                     Store
                   </button>
+                  {user && <button onClick={() => { onNavigate("wholesale"); setMobileOpen(false); }} className="w-full text-left px-4 py-3 text-sm font-medium text-foreground hover:bg-secondary rounded-xl transition-colors flex items-center gap-3"><Building2 size={16} className="text-muted-foreground"/> Wholesale</button>}
+                  </>
                 )}
               </nav>
               <div className="border-t border-border mt-3 pt-3 px-2">

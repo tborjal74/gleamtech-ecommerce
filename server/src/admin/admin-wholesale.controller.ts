@@ -7,7 +7,7 @@ import { Roles } from '../authentication/roles.decorator.js';
 import { RolesGuard } from '../authentication/roles.guard.js';
 import { SessionAuthGuard } from '../authentication/session-auth.guard.js';
 import { AdminWholesaleService } from './admin-wholesale.service.js';
-import { CreateWholesaleOrderDto, UpdateWholesaleOrderDto, UpsertWholesaleAccountDto, WholesaleListQueryDto } from './dto/admin-wholesale.dto.js';
+import { CreateWholesaleOrderDto, ReviewWholesaleApplicationDto, UpdateWholesaleOrderDto, UpsertWholesaleAccountDto, WholesaleListQueryDto } from './dto/admin-wholesale.dto.js';
 
 @Controller('api/admin/wholesale')
 @UseGuards(SessionAuthGuard, RolesGuard)
@@ -16,6 +16,9 @@ export class AdminWholesaleController {
   constructor(private readonly wholesale: AdminWholesaleService) {}
 
   @Get('dashboard') dashboard() { return this.wholesale.dashboard(); }
+  @Get('applications') applications(@Query() query: WholesaleListQueryDto) { return this.wholesale.applications(query); }
+  @Patch('applications/:applicationId') @UseGuards(CsrfGuard)
+  reviewApplication(@CurrentAuth() auth: AuthenticatedRequest, @Param('applicationId') applicationId: string, @Body() dto: ReviewWholesaleApplicationDto) { return this.wholesale.reviewApplication(auth.user.id, applicationId, dto); }
   @Get('accounts') accounts(@Query() query: WholesaleListQueryDto) { return this.wholesale.accounts(query); }
   @Post('accounts') @UseGuards(CsrfGuard)
   createAccount(@CurrentAuth() auth: AuthenticatedRequest, @Body() dto: UpsertWholesaleAccountDto) { return this.wholesale.createAccount(auth.user.id, dto); }

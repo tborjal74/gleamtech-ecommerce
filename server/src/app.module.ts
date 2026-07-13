@@ -12,6 +12,7 @@ import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
 import { InventoryModule } from './inventory/inventory.module.js';
 import { OrdersModule } from './orders/orders.module.js';
+import { WholesaleModule } from './wholesale/wholesale.module.js';
 import { PaymentsModule } from './payments/payments.module.js';
 
 @Module({
@@ -32,6 +33,7 @@ import { PaymentsModule } from './payments/payments.module.js';
     HealthModule,
     InventoryModule,
     OrdersModule,
+    WholesaleModule,
     PaymentsModule,
   ],
   providers: [

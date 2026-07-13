@@ -54,6 +54,12 @@ enum WholesalePaymentStatus {
   VOID
 }
 
+enum WholesaleApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum OAuthProvider {
   GOOGLE
 }
@@ -70,40 +76,43 @@ enum OrderRequestStatus {
 }
 
 model User {
-  id                       String               @id @default(cuid())
-  email                    String               @unique
-  passwordHash             String?
-  totpSecretEncrypted      String?
-  totpEnabled              Boolean              @default(false)
-  totpEnabledAt            DateTime?
-  firstName                String
-  lastName                 String
-  role                     UserRole             @default(CUSTOMER)
-  active                   Boolean              @default(true)
-  createdAt                DateTime             @default(now())
-  updatedAt                DateTime             @updatedAt
-  sessions                 Session[]
-  twoFactorChallenges      TwoFactorChallenge[]
-  passwordResetTokens      PasswordResetToken[]
-  oauthAccounts            OAuthAccount[]
-  cart                     Cart?
-  wishlistItems            WishlistItem[]
-  orders                   Order[]
-  orderRequests            OrderRequest[]
-  createdProducts          Product[]            @relation("ProductCreatedBy")
-  updatedProducts          Product[]            @relation("ProductUpdatedBy")
-  createdPromos            PromoCode[]          @relation("PromoCreatedBy")
-  updatedPromos            PromoCode[]          @relation("PromoUpdatedBy")
-  updatedHomepageContent   HomepageContent[]    @relation("HomepageUpdatedBy")
-  orderStatusChanges       OrderStatusHistory[] @relation("OrderStatusChangedBy")
-  adminActivityLogs        AdminActivityLog[]   @relation("AdminActivityActor")
-  addresses                CustomerAddress[]
-  productReviews           ProductReview[]
-  stockNotifications       StockNotification[]
-  createdWholesaleAccounts WholesaleAccount[]   @relation("WholesaleAccountCreatedBy")
-  updatedWholesaleAccounts WholesaleAccount[]   @relation("WholesaleAccountUpdatedBy")
-  createdWholesaleOrders   WholesaleOrder[]     @relation("WholesaleOrderCreatedBy")
-  updatedWholesaleOrders   WholesaleOrder[]     @relation("WholesaleOrderUpdatedBy")
+  id                            String                  @id @default(cuid())
+  email                         String                  @unique
+  passwordHash                  String?
+  totpSecretEncrypted           String?
+  totpEnabled                   Boolean                 @default(false)
+  totpEnabledAt                 DateTime?
+  firstName                     String
+  lastName                      String
+  role                          UserRole                @default(CUSTOMER)
+  active                        Boolean                 @default(true)
+  createdAt                     DateTime                @default(now())
+  updatedAt                     DateTime                @updatedAt
+  sessions                      Session[]
+  twoFactorChallenges           TwoFactorChallenge[]
+  passwordResetTokens           PasswordResetToken[]
+  oauthAccounts                 OAuthAccount[]
+  cart                          Cart?
+  wishlistItems                 WishlistItem[]
+  orders                        Order[]
+  orderRequests                 OrderRequest[]
+  createdProducts               Product[]               @relation("ProductCreatedBy")
+  updatedProducts               Product[]               @relation("ProductUpdatedBy")
+  createdPromos                 PromoCode[]             @relation("PromoCreatedBy")
+  updatedPromos                 PromoCode[]             @relation("PromoUpdatedBy")
+  updatedHomepageContent        HomepageContent[]       @relation("HomepageUpdatedBy")
+  orderStatusChanges            OrderStatusHistory[]    @relation("OrderStatusChangedBy")
+  adminActivityLogs             AdminActivityLog[]      @relation("AdminActivityActor")
+  addresses                     CustomerAddress[]
+  productReviews                ProductReview[]
+  stockNotifications            StockNotification[]
+  createdWholesaleAccounts      WholesaleAccount[]      @relation("WholesaleAccountCreatedBy")
+  updatedWholesaleAccounts      WholesaleAccount[]      @relation("WholesaleAccountUpdatedBy")
+  createdWholesaleOrders        WholesaleOrder[]        @relation("WholesaleOrderCreatedBy")
+  updatedWholesaleOrders        WholesaleOrder[]        @relation("WholesaleOrderUpdatedBy")
+  wholesaleApplication          WholesaleApplication?   @relation("WholesaleApplicant")
+  wholesaleMembership           WholesaleAccountMember?
+  reviewedWholesaleApplications WholesaleApplication[]  @relation("WholesaleApplicationReviewedBy")
 
   @@index([email])
 }
@@ -207,7 +216,7 @@ model Product {
 }
 
 model WholesaleAccount {
-  id                String                 @id @default(cuid())
+  id                String                   @id @default(cuid())
   companyName       String
   contactName       String
   email             String
@@ -215,23 +224,65 @@ model WholesaleAccount {
   taxId             String?
   billingAddress    String
   shippingAddress   String
-  priceTier         String                 @default("STANDARD")
-  paymentTermDays   Int                    @default(0)
-  creditLimitMinor  Int                    @default(0)
-  minimumOrderMinor Int                    @default(0)
-  status            WholesaleAccountStatus @default(ACTIVE)
+  priceTier         String                   @default("STANDARD")
+  discountPercent   Int                      @default(0)
+  paymentTermDays   Int                      @default(0)
+  creditLimitMinor  Int                      @default(0)
+  minimumOrderMinor Int                      @default(0)
+  status            WholesaleAccountStatus   @default(ACTIVE)
   notes             String?
   createdById       String
   updatedById       String
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
-  createdBy         User                   @relation("WholesaleAccountCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  updatedBy         User                   @relation("WholesaleAccountUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  createdBy         User                     @relation("WholesaleAccountCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy         User                     @relation("WholesaleAccountUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
   orders            WholesaleOrder[]
+  members           WholesaleAccountMember[]
+  applications      WholesaleApplication[]
 
   @@index([companyName])
   @@index([email])
   @@index([status])
+}
+
+model WholesaleAccountMember {
+  id        String           @id @default(cuid())
+  accountId String
+  userId    String           @unique
+  createdAt DateTime         @default(now())
+  account   WholesaleAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+}
+
+model WholesaleApplication {
+  id                         String                     @id @default(cuid())
+  userId                     String                     @unique
+  companyName                String
+  contactName                String
+  phone                      String
+  taxId                      String?
+  billingAddress             String
+  shippingAddress            String
+  businessType               String
+  estimatedMonthlySpendMinor Int
+  message                    String?
+  status                     WholesaleApplicationStatus @default(PENDING)
+  adminNote                  String?
+  reviewedById               String?
+  reviewedAt                 DateTime?
+  accountId                  String?
+  createdAt                  DateTime                   @default(now())
+  updatedAt                  DateTime                   @updatedAt
+  user                       User                       @relation("WholesaleApplicant", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy                 User?                      @relation("WholesaleApplicationReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  account                    WholesaleAccount?          @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([accountId])
 }
 
 model WholesaleOrder {

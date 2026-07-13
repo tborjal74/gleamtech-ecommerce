@@ -20,6 +20,7 @@ import { AdminOperationsPage, type AdminOperationsSection } from "./store/pages/
 import { AdminListingsPage } from "./store/pages/AdminListingsPage";
 import { AdminOrdersPage } from "./store/pages/AdminOrdersPage";
 import { AdminWholesalePage } from "./store/pages/AdminWholesalePage";
+import { WholesalePage } from "./store/pages/WholesalePage";
 import type { CartItem, Page, Product } from "./store/types";
 
 const GOOGLE_GSI_SCRIPT_SRC = "https://accounts.google.com/gsi/client?hl=en";
@@ -598,6 +599,9 @@ export default function App() {
         )}
         {page === "orders" && user && (
           <OrdersPage onNavigate={navigate} />
+        )}
+        {page === "wholesale" && (
+          user ? <WholesalePage user={user} /> : <AccessDenied onNavigate={navigate} onSignIn={() => openAuthModal("login")} user={user} />
         )}
         {page === "wishlist" && user && (
           <WishlistPage

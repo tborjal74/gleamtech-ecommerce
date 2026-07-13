@@ -34,6 +34,7 @@ export type Page =
   | "checkout"
   | "profile"
   | "orders"
+  | "wholesale"
   | "wishlist"
   | "admin-analytics"
   | "admin-activity"

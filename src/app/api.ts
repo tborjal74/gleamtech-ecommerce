@@ -241,10 +241,13 @@ export interface AdminInventoryProduct {
 export interface WholesaleDashboard { activeAccounts: number; openOrders: number; unpaidOrders: number; overdueOrders: number; totalOrderValue: number; totalOrderValueMinor: number }
 export interface WholesaleAccount {
   id: string; companyName: string; contactName: string; email: string; phone: string; taxId?: string | null;
-  billingAddress: string; shippingAddress: string; priceTier: string; paymentTermDays: number;
+  billingAddress: string; shippingAddress: string; priceTier: string; discountPercent: number; paymentTermDays: number;
   creditLimitMinor: number; minimumOrderMinor: number; creditLimit: number; minimumOrder: number;
   status: "ACTIVE" | "ON_HOLD" | "CLOSED"; notes?: string | null; orderCount: number; outstanding: number; createdAt: string; updatedAt: string;
 }
+export interface WholesaleApplication { id: string; companyName: string; contactName: string; email?: string; phone: string; taxId?: string | null; billingAddress: string; shippingAddress: string; businessType: string; estimatedMonthlySpendMinor: number; estimatedMonthlySpend?: number; message?: string | null; status: "PENDING" | "APPROVED" | "REJECTED"; adminNote?: string | null; createdAt: string; reviewedAt?: string | null }
+export interface CustomerWholesaleProduct { id: string; sku: string; name: string; image: string; retailPrice: number; wholesalePrice: number; wholesalePriceMinor: number; availableQuantity: number }
+export interface CustomerWholesalePortal { application: WholesaleApplication | null; account: WholesaleAccount | null; orders: WholesaleOrder[]; products: CustomerWholesaleProduct[] }
 export type WholesaleAccountInput = Omit<WholesaleAccount, "id" | "creditLimit" | "minimumOrder" | "orderCount" | "outstanding" | "createdAt" | "updatedAt">;
 export interface WholesaleOrder {
   id: string; orderNumber: string; purchaseOrderNumber?: string | null; status: string; paymentStatus: string;
@@ -879,6 +882,12 @@ export const api = {
   adminWholesaleDashboard() {
     return request<{ dashboard: WholesaleDashboard }>("/api/admin/wholesale/dashboard");
   },
+  adminWholesaleApplications(query = "") {
+    return request<{ applications: WholesaleApplication[]; pagination: Pagination }>(`/api/admin/wholesale/applications${query}`);
+  },
+  adminReviewWholesaleApplication(applicationId: string, input: { decision: "approve" | "reject"; adminNote?: string; priceTier?: string; discountPercent?: number; paymentTermDays?: number; creditLimitMinor?: number; minimumOrderMinor?: number }) {
+    return request<{ application: WholesaleApplication; account?: WholesaleAccount }>(`/api/admin/wholesale/applications/${applicationId}`, { method: "PATCH", body: JSON.stringify(input) });
+  },
   adminWholesaleAccounts(query = "") {
     return request<{ accounts: WholesaleAccount[]; pagination: Pagination }>(`/api/admin/wholesale/accounts${query}`);
   },
@@ -896,6 +905,15 @@ export const api = {
   },
   adminUpdateWholesaleOrder(orderId: string, status: string, paymentStatus: string) {
     return request<{ order: WholesaleOrder }>(`/api/admin/wholesale/orders/${orderId}`, { method: "PATCH", body: JSON.stringify({ status, paymentStatus }) });
+  },
+  customerWholesalePortal() {
+    return request<CustomerWholesalePortal>("/api/wholesale");
+  },
+  submitWholesaleApplication(input: { companyName: string; contactName: string; phone: string; taxId?: string; billingAddress: string; shippingAddress: string; businessType: string; estimatedMonthlySpendMinor: number; message?: string }) {
+    return request<{ application: WholesaleApplication }>("/api/wholesale/applications", { method: "POST", body: JSON.stringify(input) });
+  },
+  createCustomerWholesaleOrder(input: { purchaseOrderNumber?: string; notes?: string; items: Array<{ productId: string; quantity: number }> }) {
+    return request<{ order: WholesaleOrder }>("/api/wholesale/orders", { method: "POST", body: JSON.stringify(input) });
   },
   async adminOrder(orderId: string) {
     const response = await request<{ order: AdminOrderDetail }>(`/api/admin/orders/${orderId}`);

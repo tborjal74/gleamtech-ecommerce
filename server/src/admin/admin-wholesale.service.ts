@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { Prisma, WholesaleAccountStatus, WholesaleOrderStatus, WholesalePaymentStatus } from '@prisma/client';
+import { Prisma, WholesaleAccountStatus, WholesaleApplicationStatus, WholesaleOrderStatus, WholesalePaymentStatus } from '@prisma/client';
 import { ApiError } from '../common/api-error.js';
 import { minorToAmount } from '../common/money.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { AdminActivityService } from './admin-activity.service.js';
-import type { CreateWholesaleOrderDto, UpdateWholesaleOrderDto, UpsertWholesaleAccountDto, WholesaleListQueryDto } from './dto/admin-wholesale.dto.js';
+import type { CreateWholesaleOrderDto, ReviewWholesaleApplicationDto, UpdateWholesaleOrderDto, UpsertWholesaleAccountDto, WholesaleListQueryDto } from './dto/admin-wholesale.dto.js';
 
 @Injectable()
 export class AdminWholesaleService {
@@ -21,6 +21,38 @@ export class AdminWholesaleService {
       this.prisma.wholesaleOrder.aggregate({ _sum: { totalMinor: true }, where: { status: { not: WholesaleOrderStatus.CANCELLED } } }),
     ]);
     return { dashboard: { activeAccounts, openOrders, unpaidOrders, overdueOrders, totalOrderValue: minorToAmount(totals._sum.totalMinor ?? 0), totalOrderValueMinor: totals._sum.totalMinor ?? 0 } };
+  }
+
+  async applications(query: WholesaleListQueryDto) {
+    const where: Prisma.WholesaleApplicationWhereInput = query.search?.trim() ? { OR: [
+      { companyName: { contains: query.search.trim(), mode: Prisma.QueryMode.insensitive } },
+      { contactName: { contains: query.search.trim(), mode: Prisma.QueryMode.insensitive } },
+      { user: { email: { contains: query.search.trim(), mode: Prisma.QueryMode.insensitive } } },
+    ] } : {};
+    const [total, applications] = await this.prisma.$transaction([
+      this.prisma.wholesaleApplication.count({ where }),
+      this.prisma.wholesaleApplication.findMany({ where, include: { user: { select: { email: true } } }, orderBy: { createdAt: 'desc' }, skip: (query.page - 1) * query.pageSize, take: query.pageSize }),
+    ]);
+    return { applications: applications.map(application => ({ ...application, email: application.user.email, estimatedMonthlySpend: minorToAmount(application.estimatedMonthlySpendMinor), user: undefined })), pagination: this.pagination(query, total) };
+  }
+
+  async reviewApplication(adminId: string, applicationId: string, dto: ReviewWholesaleApplicationDto) {
+    const application = await this.prisma.wholesaleApplication.findUnique({ where: { id: applicationId }, include: { user: true } });
+    if (!application) throw new ApiError(HttpStatus.NOT_FOUND, 'WHOLESALE_APPLICATION_NOT_FOUND', 'Wholesale application was not found.');
+    if (application.status !== WholesaleApplicationStatus.PENDING) throw new ApiError(HttpStatus.CONFLICT, 'WHOLESALE_APPLICATION_REVIEWED', 'This wholesale application was already reviewed.');
+    if (dto.decision === 'reject') {
+      const updated = await this.prisma.wholesaleApplication.update({ where: { id: applicationId }, data: { status: WholesaleApplicationStatus.REJECTED, adminNote: dto.adminNote?.trim() || null, reviewedById: adminId, reviewedAt: new Date() } });
+      await this.activity.record({ adminId, action: 'wholesale.application_rejected', entityType: 'wholesale_application', entityId: applicationId, description: `Rejected wholesale application for ${application.companyName}` });
+      return { application: updated };
+    }
+    const result = await this.prisma.$transaction(async tx => {
+      const account = await tx.wholesaleAccount.create({ data: { companyName: application.companyName, contactName: application.contactName, email: application.user.email, phone: application.phone, taxId: application.taxId, billingAddress: application.billingAddress, shippingAddress: application.shippingAddress, priceTier: dto.priceTier?.trim().toUpperCase() || 'STANDARD', discountPercent: dto.discountPercent ?? 0, paymentTermDays: dto.paymentTermDays ?? 0, creditLimitMinor: dto.creditLimitMinor ?? 0, minimumOrderMinor: dto.minimumOrderMinor ?? 0, notes: dto.adminNote?.trim() || application.message, createdById: adminId, updatedById: adminId } });
+      await tx.wholesaleAccountMember.create({ data: { accountId: account.id, userId: application.userId } });
+      const updated = await tx.wholesaleApplication.update({ where: { id: applicationId }, data: { status: WholesaleApplicationStatus.APPROVED, adminNote: dto.adminNote?.trim() || null, reviewedById: adminId, reviewedAt: new Date(), accountId: account.id } });
+      return { account, application: updated };
+    });
+    await this.activity.record({ adminId, action: 'wholesale.application_approved', entityType: 'wholesale_application', entityId: applicationId, description: `Approved wholesale application for ${application.companyName}`, metadata: { accountId: result.account.id, discountPercent: result.account.discountPercent } });
+    return result;
   }
 
   async accounts(query: WholesaleListQueryDto) {
