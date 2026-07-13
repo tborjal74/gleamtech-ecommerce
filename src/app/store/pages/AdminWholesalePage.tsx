@@ -7,6 +7,7 @@ import { formatCurrency } from "../currency";
 const blankAccount: WholesaleAccountInput = { companyName: "", contactName: "", email: "", phone: "", taxId: "", billingAddress: "", shippingAddress: "", priceTier: "STANDARD", discountPercent: 0, paymentTermDays: 0, creditLimitMinor: 0, minimumOrderMinor: 0, status: "ACTIVE", notes: "" };
 const orderStatuses = ["DRAFT", "CONFIRMED", "PROCESSING", "READY", "SHIPPED", "COMPLETED", "CANCELLED"];
 const paymentStatuses = ["UNPAID", "PARTIALLY_PAID", "PAID", "OVERDUE", "VOID"];
+const priceTiers = ["STANDARD", "SILVER", "GOLD", "PLATINUM"];
 const message = (error: unknown) => error instanceof ApiClientError ? error.body.message : error instanceof Error ? error.message : "Request failed.";
 
 export function AdminWholesalePage() {
@@ -66,5 +67,6 @@ export function AdminWholesalePage() {
   </main>;
 }
 
-function Field({label,value,onChange,type="text"}:{label:string;value:string;onChange:(value:string)=>void;type?:string}) { return <label className="text-sm font-medium">{label}<input required type={type} value={value} onChange={e=>onChange(e.target.value)} className="mt-1 h-10 w-full rounded-xl border border-border bg-card px-3"/></label>; }
-function Modal({title,onClose,children}:{title:string;onClose:()=>void;children:React.ReactNode}) { return <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/45 p-4"><div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-border bg-card p-5 shadow-2xl"><div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-bold">{title}</h2><button onClick={onClose} className="rounded-lg p-2 hover:bg-secondary"><X size={18}/></button></div>{children}</div></div>; }
+function Field({label,value,onChange,type="text"}:{label:string;value:string;onChange:(value:string)=>void;type?:string}) { if (label === "Price tier") return <PriceTierField value={value} onChange={onChange}/>; return <label className="min-w-0 text-sm font-medium">{label}<input required type={type} value={value} onChange={e=>onChange(e.target.value)} className="mt-1 h-10 w-full min-w-0 rounded-xl border border-border bg-card px-3"/></label>; }
+function PriceTierField({value,onChange}:{value:string;onChange:(value:string)=>void}) { return <label className="min-w-0 text-sm font-medium">Price tier<select value={value} onChange={event=>onChange(event.target.value)} className="mt-1 h-10 w-full min-w-0 rounded-xl border border-border bg-card px-3">{priceTiers.map(tier=><option key={tier} value={tier}>{tier.charAt(0)+tier.slice(1).toLowerCase()}</option>)}</select></label>; }
+function Modal({title,onClose,children}:{title:string;onClose:()=>void;children:React.ReactNode}) { const wide = title === "Create wholesale order"; return <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/45 p-4"><div className={`max-h-[92vh] w-full overflow-x-hidden overflow-y-auto rounded-2xl border border-border bg-card p-5 shadow-2xl [&_input]:min-w-0 [&_select]:min-w-0 [&_select]:max-w-full ${wide ? "max-w-5xl" : "max-w-3xl"}`}><div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-bold">{title}</h2><button onClick={onClose} className="rounded-lg p-2 hover:bg-secondary"><X size={18}/></button></div>{children}</div></div>; }
