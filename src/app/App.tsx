@@ -19,6 +19,7 @@ import { AdminAnalyticsPage } from "./store/pages/AdminAnalyticsPage";
 import { AdminOperationsPage, type AdminOperationsSection } from "./store/pages/AdminOperationsPage";
 import { AdminListingsPage } from "./store/pages/AdminListingsPage";
 import { AdminOrdersPage } from "./store/pages/AdminOrdersPage";
+import { AdminWholesalePage } from "./store/pages/AdminWholesalePage";
 import type { CartItem, Page, Product } from "./store/types";
 
 const GOOGLE_GSI_SCRIPT_SRC = "https://accounts.google.com/gsi/client?hl=en";
@@ -640,6 +641,13 @@ export default function App() {
         {page === "admin-orders" && (
           user?.role === "ADMIN" ? (
             <AdminOrdersPage />
+          ) : (
+            <AccessDenied onNavigate={navigate} onSignIn={() => openAuthModal("login")} user={user} />
+          )
+        )}
+        {page === "admin-wholesale" && (
+          user?.role === "ADMIN" ? (
+            <AdminWholesalePage />
           ) : (
             <AccessDenied onNavigate={navigate} onSignIn={() => openAuthModal("login")} user={user} />
           )

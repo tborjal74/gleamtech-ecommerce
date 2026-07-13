@@ -30,6 +30,30 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum WholesaleAccountStatus {
+  ACTIVE
+  ON_HOLD
+  CLOSED
+}
+
+enum WholesaleOrderStatus {
+  DRAFT
+  CONFIRMED
+  PROCESSING
+  READY
+  SHIPPED
+  COMPLETED
+  CANCELLED
+}
+
+enum WholesalePaymentStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  VOID
+}
+
 enum OAuthProvider {
   GOOGLE
 }
@@ -46,61 +70,65 @@ enum OrderRequestStatus {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  passwordHash String?
-  totpSecretEncrypted String?
-  totpEnabled Boolean   @default(false)
-  totpEnabledAt DateTime?
-  firstName    String
-  lastName     String
-  role         UserRole  @default(CUSTOMER)
-  active       Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  sessions     Session[]
-  twoFactorChallenges TwoFactorChallenge[]
-  passwordResetTokens PasswordResetToken[]
-  oauthAccounts OAuthAccount[]
-  cart         Cart?
-  wishlistItems WishlistItem[]
-  orders       Order[]
-  orderRequests OrderRequest[]
-  createdProducts Product[] @relation("ProductCreatedBy")
-  updatedProducts Product[] @relation("ProductUpdatedBy")
-  createdPromos PromoCode[] @relation("PromoCreatedBy")
-  updatedPromos PromoCode[] @relation("PromoUpdatedBy")
-  updatedHomepageContent HomepageContent[] @relation("HomepageUpdatedBy")
-  orderStatusChanges OrderStatusHistory[] @relation("OrderStatusChangedBy")
-  adminActivityLogs AdminActivityLog[] @relation("AdminActivityActor")
-  addresses     CustomerAddress[]
-  productReviews ProductReview[]
-  stockNotifications StockNotification[]
+  id                       String               @id @default(cuid())
+  email                    String               @unique
+  passwordHash             String?
+  totpSecretEncrypted      String?
+  totpEnabled              Boolean              @default(false)
+  totpEnabledAt            DateTime?
+  firstName                String
+  lastName                 String
+  role                     UserRole             @default(CUSTOMER)
+  active                   Boolean              @default(true)
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+  sessions                 Session[]
+  twoFactorChallenges      TwoFactorChallenge[]
+  passwordResetTokens      PasswordResetToken[]
+  oauthAccounts            OAuthAccount[]
+  cart                     Cart?
+  wishlistItems            WishlistItem[]
+  orders                   Order[]
+  orderRequests            OrderRequest[]
+  createdProducts          Product[]            @relation("ProductCreatedBy")
+  updatedProducts          Product[]            @relation("ProductUpdatedBy")
+  createdPromos            PromoCode[]          @relation("PromoCreatedBy")
+  updatedPromos            PromoCode[]          @relation("PromoUpdatedBy")
+  updatedHomepageContent   HomepageContent[]    @relation("HomepageUpdatedBy")
+  orderStatusChanges       OrderStatusHistory[] @relation("OrderStatusChangedBy")
+  adminActivityLogs        AdminActivityLog[]   @relation("AdminActivityActor")
+  addresses                CustomerAddress[]
+  productReviews           ProductReview[]
+  stockNotifications       StockNotification[]
+  createdWholesaleAccounts WholesaleAccount[]   @relation("WholesaleAccountCreatedBy")
+  updatedWholesaleAccounts WholesaleAccount[]   @relation("WholesaleAccountUpdatedBy")
+  createdWholesaleOrders   WholesaleOrder[]     @relation("WholesaleOrderCreatedBy")
+  updatedWholesaleOrders   WholesaleOrder[]     @relation("WholesaleOrderUpdatedBy")
 
   @@index([email])
 }
 
 model PasswordResetToken {
-  id        String   @id @default(cuid())
-  tokenHash String   @unique
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
   userId    String
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
 }
 
 model TwoFactorChallenge {
-  id          String   @id @default(cuid())
-  tokenHash   String   @unique
-  userId      String
-  expiresAt   DateTime
-  consumedAt  DateTime?
-  createdAt   DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String    @id @default(cuid())
+  tokenHash  String    @unique
+  userId     String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
@@ -122,59 +150,133 @@ model OAuthAccount {
 }
 
 model Session {
-  id          String   @id @default(cuid())
-  tokenHash   String   @unique
-  csrfToken   String
-  userId      String
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  csrfToken String
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
 }
 
 model Product {
-  id                String      @id
-  sku               String      @unique
-  slug              String      @unique
-  name              String
-  description       String
-  shortDescription  String
-  priceMinor        Int
-  originalPriceMinor Int?
-  weightGrams       Int?
-  active            Boolean     @default(true)
-  isPublished       Boolean     @default(true)
-  category          String
-  brand             String
-  scent             String?
-  isEco             Boolean     @default(false)
-  image             String
-  badge             String?
-  rating            Float       @default(0)
-  reviewCount       Int         @default(0)
-  sizes             String[]
-  tags              String[]
-  createdById       String?
-  updatedById       String?
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-  inventory         Inventory?
-  cartItems         CartItem[]
-  wishlistItems     WishlistItem[]
-  orderItems        OrderItem[]
-  images            ProductImage[]
-  reviews           ProductReview[]
-  stockNotifications StockNotification[]
-  createdBy         User?       @relation("ProductCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy         User?       @relation("ProductUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  id                  String               @id
+  sku                 String               @unique
+  slug                String               @unique
+  name                String
+  description         String
+  shortDescription    String
+  priceMinor          Int
+  originalPriceMinor  Int?
+  weightGrams         Int?
+  active              Boolean              @default(true)
+  isPublished         Boolean              @default(true)
+  category            String
+  brand               String
+  scent               String?
+  isEco               Boolean              @default(false)
+  image               String
+  badge               String?
+  rating              Float                @default(0)
+  reviewCount         Int                  @default(0)
+  sizes               String[]
+  tags                String[]
+  createdById         String?
+  updatedById         String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  inventory           Inventory?
+  cartItems           CartItem[]
+  wishlistItems       WishlistItem[]
+  orderItems          OrderItem[]
+  images              ProductImage[]
+  reviews             ProductReview[]
+  stockNotifications  StockNotification[]
+  wholesaleOrderItems WholesaleOrderItem[]
+  createdBy           User?                @relation("ProductCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy           User?                @relation("ProductUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@index([active])
   @@index([isPublished])
   @@index([category])
   @@index([createdById])
   @@index([updatedById])
+}
+
+model WholesaleAccount {
+  id                String                 @id @default(cuid())
+  companyName       String
+  contactName       String
+  email             String
+  phone             String
+  taxId             String?
+  billingAddress    String
+  shippingAddress   String
+  priceTier         String                 @default("STANDARD")
+  paymentTermDays   Int                    @default(0)
+  creditLimitMinor  Int                    @default(0)
+  minimumOrderMinor Int                    @default(0)
+  status            WholesaleAccountStatus @default(ACTIVE)
+  notes             String?
+  createdById       String
+  updatedById       String
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  createdBy         User                   @relation("WholesaleAccountCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy         User                   @relation("WholesaleAccountUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  orders            WholesaleOrder[]
+
+  @@index([companyName])
+  @@index([email])
+  @@index([status])
+}
+
+model WholesaleOrder {
+  id                  String                 @id @default(cuid())
+  orderNumber         String                 @unique
+  accountId           String
+  purchaseOrderNumber String?
+  status              WholesaleOrderStatus   @default(DRAFT)
+  paymentStatus       WholesalePaymentStatus @default(UNPAID)
+  paymentTermDays     Int                    @default(0)
+  paymentDueAt        DateTime?
+  subtotalMinor       Int
+  discountMinor       Int                    @default(0)
+  totalMinor          Int
+  notes               String?
+  createdById         String
+  updatedById         String
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  account             WholesaleAccount       @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  createdBy           User                   @relation("WholesaleOrderCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy           User                   @relation("WholesaleOrderUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  items               WholesaleOrderItem[]
+
+  @@index([accountId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([paymentDueAt])
+  @@index([createdAt])
+}
+
+model WholesaleOrderItem {
+  id             String         @id @default(cuid())
+  orderId        String
+  productId      String
+  productName    String
+  productSku     String
+  unitPriceMinor Int
+  quantity       Int
+  lineTotalMinor Int
+  order          WholesaleOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product        Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([productId])
 }
 
 model WishlistItem {
@@ -209,20 +311,20 @@ model ProductImage {
 }
 
 model PromoCode {
-  id              String    @id @default(cuid())
-  code            String    @unique
-  name            String
-  description     String?
-  percentOff      Int
-  active          Boolean   @default(true)
-  startsAt        DateTime?
-  endsAt          DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  createdById     String?
-  updatedById     String?
-  createdBy       User?     @relation("PromoCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy       User?     @relation("PromoUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  id          String    @id @default(cuid())
+  code        String    @unique
+  name        String
+  description String?
+  percentOff  Int
+  active      Boolean   @default(true)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdById String?
+  updatedById String?
+  createdBy   User?     @relation("PromoCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?     @relation("PromoUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@index([active])
   @@index([startsAt])
@@ -232,25 +334,25 @@ model PromoCode {
 }
 
 model HomepageContent {
-  id              String   @id @default("home")
-  eyebrow         String   @default("Gleamtech Essentials")
-  headline        String   @default("Everyday clean, elevated")
-  subheadline     String   @default("Powerful cleaning products for every room, backed by secure checkout and fast Gleamtech delivery.")
-  primaryCta      String   @default("Shop Now")
-  secondaryCta    String   @default("View Bundles")
-  heroImage       String   @default("/assets/hero-image-1.png")
-  subHeroImageLeft String  @default("/assets/sub-hero-image-2.png")
-  subHeroImageRight String @default("/assets/sub-hero-image-3.png")
-  promoLabel      String   @default("Limited Time")
-  promoHeadline   String   @default("Bundle & Save up to 30%")
-  promoText       String   @default("Mix and match any 3 products and get 30% off.")
-  promiseOneTitle String   @default("Powerful Clean, Naturally")
-  promiseOneText  String   @default("Plant-powered formulas that tackle grease, grime, and everyday messes without harsh chemicals")
-  promiseTwoTitle String   @default("Satisfaction Guaranteed")
-  promiseTwoText  String   @default("Love your Gleamtech clean, or we'll make it right with friendly support and easy resolutions")
-  updatedAt       DateTime @updatedAt
-  updatedById     String?
-  updatedBy       User?    @relation("HomepageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  id                String   @id @default("home")
+  eyebrow           String   @default("Gleamtech Essentials")
+  headline          String   @default("Everyday clean, elevated")
+  subheadline       String   @default("Powerful cleaning products for every room, backed by secure checkout and fast Gleamtech delivery.")
+  primaryCta        String   @default("Shop Now")
+  secondaryCta      String   @default("View Bundles")
+  heroImage         String   @default("/assets/hero-image-1.png")
+  subHeroImageLeft  String   @default("/assets/sub-hero-image-2.png")
+  subHeroImageRight String   @default("/assets/sub-hero-image-3.png")
+  promoLabel        String   @default("Limited Time")
+  promoHeadline     String   @default("Bundle & Save up to 30%")
+  promoText         String   @default("Mix and match any 3 products and get 30% off.")
+  promiseOneTitle   String   @default("Powerful Clean, Naturally")
+  promiseOneText    String   @default("Plant-powered formulas that tackle grease, grime, and everyday messes without harsh chemicals")
+  promiseTwoTitle   String   @default("Satisfaction Guaranteed")
+  promiseTwoText    String   @default("Love your Gleamtech clean, or we'll make it right with friendly support and easy resolutions")
+  updatedAt         DateTime @updatedAt
+  updatedById       String?
+  updatedBy         User?    @relation("HomepageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@index([updatedById])
 }
@@ -287,34 +389,34 @@ model CartItem {
 }
 
 model Order {
-  id              String        @id @default(cuid())
-  userId          String
-  orderNumber     String        @unique
-  idempotencyKey  String
-  status          OrderStatus   @default(PENDING_PAYMENT)
-  paymentStatus   PaymentStatus @default(PENDING)
-  subtotalMinor   Int
-  shippingMinor   Int
-  totalMinor      Int
-  shippingName    String
-  shippingPhone   String
-  shippingLine1   String
-  shippingLine2   String?
-  shippingCity    String
-  shippingRegion  String
-  shippingPostal  String
-  shippingCountry String
-  customerNote    String?
-  paidConfirmationEmailSentAt DateTime?
+  id                             String               @id @default(cuid())
+  userId                         String
+  orderNumber                    String               @unique
+  idempotencyKey                 String
+  status                         OrderStatus          @default(PENDING_PAYMENT)
+  paymentStatus                  PaymentStatus        @default(PENDING)
+  subtotalMinor                  Int
+  shippingMinor                  Int
+  totalMinor                     Int
+  shippingName                   String
+  shippingPhone                  String
+  shippingLine1                  String
+  shippingLine2                  String?
+  shippingCity                   String
+  shippingRegion                 String
+  shippingPostal                 String
+  shippingCountry                String
+  customerNote                   String?
+  paidConfirmationEmailSentAt    DateTime?
   paidConfirmationEmailLastError String?
-  paidAt          DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items           OrderItem[]
-  statusHistory   OrderStatusHistory[]
-  requests        OrderRequest[]
-  reviews         ProductReview[]
+  paidAt                         DateTime?
+  createdAt                      DateTime             @default(now())
+  updatedAt                      DateTime             @updatedAt
+  user                           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items                          OrderItem[]
+  statusHistory                  OrderStatusHistory[]
+  requests                       OrderRequest[]
+  reviews                        ProductReview[]
 
   @@unique([userId, idempotencyKey])
   @@index([userId])
@@ -325,19 +427,19 @@ model Order {
 }
 
 model OrderRequest {
-  id            String             @id @default(cuid())
-  orderId       String
-  userId        String
-  type          OrderRequestType
-  status        OrderRequestStatus @default(PENDING)
-  reason        String
-  adminNote     String?
-  reviewedById  String?
-  reviewedAt    DateTime?
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-  order         Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String             @id @default(cuid())
+  orderId      String
+  userId       String
+  type         OrderRequestType
+  status       OrderRequestStatus @default(PENDING)
+  reason       String
+  adminNote    String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  order        Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@index([userId])
@@ -353,39 +455,39 @@ model OrderSequence {
 }
 
 model CustomerAddress {
-  id          String   @id @default(cuid())
-  userId      String
-  label       String   @default("Default")
-  name        String
-  phone       String
-  line1       String
-  line2       String?
-  city        String
-  region      String
-  postal      String?
-  country     String   @default("PH")
-  isDefault   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  userId    String
+  label     String   @default("Default")
+  name      String
+  phone     String
+  line1     String
+  line2     String?
+  city      String
+  region    String
+  postal    String?
+  country   String   @default("PH")
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, isDefault])
 }
 
 model ProductReview {
-  id         String   @id @default(cuid())
-  userId     String
-  productId  String
-  orderId    String
-  rating     Int
-  title      String?
-  comment    String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  orderId   String
+  rating    Int
+  title     String?
+  comment   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@unique([userId, productId, orderId])
   @@index([productId])

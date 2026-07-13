@@ -55,7 +55,8 @@ export type Page =
   | "terms-conditions"
   | "cookie-settings"
   | "admin-listings"
-  | "admin-orders";
+  | "admin-orders"
+  | "admin-wholesale";
 
 export interface StoreState {
   page: Page;

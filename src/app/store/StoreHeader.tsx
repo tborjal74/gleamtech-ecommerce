@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, BarChart3, ClipboardList, Download, Image, LogOut, PackageSearch, Search, ShieldCheck, ShoppingCart, Tags, User, Users, X, Menu, Store, Minus, Plus, Trash2 } from "lucide-react";
+import { Activity, BarChart3, Building2, ClipboardList, Download, Image, LogOut, PackageSearch, Search, ShieldCheck, ShoppingCart, Tags, User, Users, X, Menu, Store, Minus, Plus, Trash2 } from "lucide-react";
 import { cn } from "../components/ui/utils";
 import type { PublicUser } from "../api";
 import type { CartItem, Page, Product } from "./types";
@@ -223,6 +223,13 @@ export function StoreHeader({ cartItems, onNavigate, onRemoveFromCart, onUpdateC
                   Orders
                 </button>
                 <button
+                  onClick={() => onNavigate("admin-wholesale")}
+                  className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground transition-all duration-150 hover:scale-[1.02] hover:bg-secondary hover:text-foreground active:scale-[0.98] xl:px-3"
+                >
+                  <Building2 size={15} />
+                  Wholesale
+                </button>
+                <button
                   onClick={() => onNavigate("admin-payments")}
                   className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground transition-all duration-150 hover:scale-[1.02] hover:bg-secondary hover:text-foreground active:scale-[0.98] xl:px-3"
                 >
@@ -441,6 +448,13 @@ export function StoreHeader({ cartItems, onNavigate, onRemoveFromCart, onUpdateC
                     >
                       <ClipboardList size={16} className="text-muted-foreground" />
                       Orders
+                    </button>
+                    <button
+                      onClick={() => { onNavigate("admin-wholesale"); setMobileOpen(false); }}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    >
+                      <Building2 size={17} />
+                      Wholesale
                     </button>
                     <button
                       onClick={() => { onNavigate("admin-payments"); setMobileOpen(false); }}

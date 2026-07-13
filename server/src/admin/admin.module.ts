@@ -13,10 +13,12 @@ import { AdminOperationsController } from './admin-operations.controller.js';
 import { AdminOperationsService } from './admin-operations.service.js';
 import { AdminProductsController } from './admin-products.controller.js';
 import { AdminProductsService } from './admin-products.service.js';
+import { AdminWholesaleController } from './admin-wholesale.controller.js';
+import { AdminWholesaleService } from './admin-wholesale.service.js';
 
 @Module({
   imports: [AuthenticationModule, DatabaseModule, EmailModule, UploadsModule],
-  controllers: [AdminProductsController, AdminOrdersController, AdminAnalyticsController, AdminOperationsController],
-  providers: [AdminProductsService, AdminOrdersService, AdminAnalyticsService, AdminOperationsService, AdminActivityService],
+  controllers: [AdminProductsController, AdminOrdersController, AdminAnalyticsController, AdminOperationsController, AdminWholesaleController],
+  providers: [AdminProductsService, AdminOrdersService, AdminAnalyticsService, AdminOperationsService, AdminActivityService, AdminWholesaleService],
 })
 export class AdminModule {}

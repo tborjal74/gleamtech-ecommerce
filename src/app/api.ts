@@ -238,6 +238,20 @@ export interface AdminInventoryProduct {
   updatedAt: string;
 }
 
+export interface WholesaleDashboard { activeAccounts: number; openOrders: number; unpaidOrders: number; overdueOrders: number; totalOrderValue: number; totalOrderValueMinor: number }
+export interface WholesaleAccount {
+  id: string; companyName: string; contactName: string; email: string; phone: string; taxId?: string | null;
+  billingAddress: string; shippingAddress: string; priceTier: string; paymentTermDays: number;
+  creditLimitMinor: number; minimumOrderMinor: number; creditLimit: number; minimumOrder: number;
+  status: "ACTIVE" | "ON_HOLD" | "CLOSED"; notes?: string | null; orderCount: number; outstanding: number; createdAt: string; updatedAt: string;
+}
+export type WholesaleAccountInput = Omit<WholesaleAccount, "id" | "creditLimit" | "minimumOrder" | "orderCount" | "outstanding" | "createdAt" | "updatedAt">;
+export interface WholesaleOrder {
+  id: string; orderNumber: string; purchaseOrderNumber?: string | null; status: string; paymentStatus: string;
+  paymentDueAt?: string | null; subtotal: number; discount: number; total: number; itemCount: number; notes?: string | null; createdAt: string;
+  account: WholesaleAccount; items: Array<{ id: string; productId: string; productName: string; productSku: string; quantity: number; unitPriceMinor: number; unitPrice: number; lineTotal: number }>;
+}
+
 export interface CustomerAddress {
   id: string;
   label: string;
@@ -861,6 +875,27 @@ export const api = {
   },
   adminDeletePromo(promoId: string) {
     return request<{ ok: true }>(`/api/admin/promos/${promoId}`, { method: "DELETE" });
+  },
+  adminWholesaleDashboard() {
+    return request<{ dashboard: WholesaleDashboard }>("/api/admin/wholesale/dashboard");
+  },
+  adminWholesaleAccounts(query = "") {
+    return request<{ accounts: WholesaleAccount[]; pagination: Pagination }>(`/api/admin/wholesale/accounts${query}`);
+  },
+  adminCreateWholesaleAccount(input: WholesaleAccountInput) {
+    return request<{ account: WholesaleAccount }>("/api/admin/wholesale/accounts", { method: "POST", body: JSON.stringify(input) });
+  },
+  adminUpdateWholesaleAccount(accountId: string, input: WholesaleAccountInput) {
+    return request<{ account: WholesaleAccount }>(`/api/admin/wholesale/accounts/${accountId}`, { method: "PATCH", body: JSON.stringify(input) });
+  },
+  adminWholesaleOrders(query = "") {
+    return request<{ orders: WholesaleOrder[]; pagination: Pagination }>(`/api/admin/wholesale/orders${query}`);
+  },
+  adminCreateWholesaleOrder(input: { accountId: string; purchaseOrderNumber?: string; discountMinor: number; notes?: string; items: Array<{ productId: string; quantity: number; unitPriceMinor: number }> }) {
+    return request<{ order: WholesaleOrder }>("/api/admin/wholesale/orders", { method: "POST", body: JSON.stringify(input) });
+  },
+  adminUpdateWholesaleOrder(orderId: string, status: string, paymentStatus: string) {
+    return request<{ order: WholesaleOrder }>(`/api/admin/wholesale/orders/${orderId}`, { method: "PATCH", body: JSON.stringify({ status, paymentStatus }) });
   },
   async adminOrder(orderId: string) {
     const response = await request<{ order: AdminOrderDetail }>(`/api/admin/orders/${orderId}`);
