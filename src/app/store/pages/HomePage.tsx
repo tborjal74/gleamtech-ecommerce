@@ -17,14 +17,14 @@ interface HomePageProps {
   productLoading: boolean;
   productError: string;
   onRefreshProducts: () => Promise<void>;
-  content: HomepageContent | null;
+  content: HomepageContent | null | undefined;
   reviews: StorefrontReview[];
   reviewSummary: ReviewSummary;
 }
 
 const DEFAULT_HOME_CONTENT = {
   eyebrow: "Gleamtech Essentials",
-  headline: "Everyday clean, elevated",
+  headline: "Reliable, Safe and Efficient",
   subheadline: "Powerful cleaning products for every room, backed by secure checkout and fast Gleamtech delivery.",
   primaryCta: "Shop Now",
   secondaryCta: "View Bundles",
@@ -78,9 +78,20 @@ export function HomePage({ onAddToCart, onViewProduct, onNavigate, wishlist, onT
         <div className="max-w-7xl mx-auto px-6 py-16 lg:py-24 grid lg:grid-cols-2 gap-12 items-center">
           <div>
             <Badge label={home.eyebrow} color="green" className="mb-4 text-xs" />
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-[1.1] mb-5">
-              {headlineParts[0]}
-              {headlineParts.length > 1 ? <><br /><span style={{ color: "var(--green)" }}>{headlineParts.slice(1).join(",").trim()}</span></> : null}
+            <h1
+              className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-[1.1] mb-5"
+              aria-live="polite"
+            >
+              {content === undefined ? (
+                <span className="inline-block min-h-[1.1em] min-w-[9ch] animate-pulse rounded-lg bg-foreground/10 text-transparent" aria-label="Loading headline">
+                  Reliable
+                </span>
+              ) : (
+                <>
+                  {headlineParts[0]}
+                  {headlineParts.length > 1 ? <><br /><span style={{ color: "var(--green)" }}>{headlineParts.slice(1).join(",").trim()}</span></> : null}
+                </>
+              )}
             </h1>
             <p className="text-muted-foreground text-lg leading-relaxed mb-8 max-w-md">
               {home.subheadline}

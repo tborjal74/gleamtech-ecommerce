@@ -387,7 +387,7 @@ model PromoCode {
 model HomepageContent {
   id                String   @id @default("home")
   eyebrow           String   @default("Gleamtech Essentials")
-  headline          String   @default("Everyday clean, elevated")
+  headline          String   @default("Reliable, Safe and Efficient")
   subheadline       String   @default("Powerful cleaning products for every room, backed by secure checkout and fast Gleamtech delivery.")
   primaryCta        String   @default("Shop Now")
   secondaryCta      String   @default("View Bundles")

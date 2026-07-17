@@ -112,7 +112,9 @@ export default function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [productLoading, setProductLoading] = useState(true);
   const [productError, setProductError] = useState("");
-  const [homepageContent, setHomepageContent] = useState<HomepageContent | null>(null);
+  // undefined means the live homepage content is still loading; null means no
+  // record exists and allows the storefront fallback to render.
+  const [homepageContent, setHomepageContent] = useState<HomepageContent | null | undefined>(undefined);
   const [storefrontReviews, setStorefrontReviews] = useState<StorefrontReview[]>([]);
   const [reviewSummary, setReviewSummary] = useState<ReviewSummary>({ average: 0, count: 0 });
   const [promos, setPromos] = useState<PromoCode[]>([]);
@@ -178,11 +180,18 @@ export default function App() {
   }, []);
 
   const refreshStoreContent = useCallback(async () => {
-    const [homepageResult, promoResult] = await Promise.all([api.homepage(), api.promos()]);
-    setHomepageContent(homepageResult.content);
-    setStorefrontReviews(homepageResult.reviews);
-    setReviewSummary(homepageResult.reviewSummary);
-    setPromos(promoResult.promos);
+    try {
+      const [homepageResult, promoResult] = await Promise.all([api.homepage(), api.promos()]);
+      setHomepageContent(homepageResult.content);
+      setStorefrontReviews(homepageResult.reviews);
+      setReviewSummary(homepageResult.reviewSummary);
+      setPromos(promoResult.promos);
+    } catch (error) {
+      // Resolve the loading state so an API outage does not leave a permanent
+      // skeleton. The fallback is only used after the live request has failed.
+      setHomepageContent(null);
+      throw error;
+    }
   }, []);
 
   const loadCart = useCallback(async () => {
