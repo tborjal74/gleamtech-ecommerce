@@ -348,6 +348,8 @@ model ProductImage {
   productId  String
   url        String
   storageKey String
+  storageProvider String   @default("local")
+  publicId   String?       @unique
   filename   String?
   mimeType   String
   sizeBytes  Int
@@ -359,6 +361,7 @@ model ProductImage {
   @@index([productId])
   @@index([isPrimary])
   @@index([sortOrder])
+  @@index([storageProvider])
 }
 
 model PromoCode {

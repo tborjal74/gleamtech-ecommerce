@@ -28,6 +28,10 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, '');
 }
 
+function presentManagedImageUrl(productId: string, imageId: string, url: string) {
+  return url.startsWith('/uploads/products/') ? `/api/products/${productId}/images/${imageId}` : url;
+}
+
 function presentAdminProduct(product: AdminProduct) {
   return {
     id: product.id,
@@ -44,7 +48,10 @@ function presentAdminProduct(product: AdminProduct) {
     category: product.category,
     scent: product.scent,
     isEco: product.isEco,
-    primaryImageUrl: product.image,
+    primaryImageUrl: (() => {
+      const primary = product.images.find(image => image.url === product.image) ?? product.images.find(image => image.isPrimary);
+      return primary ? presentManagedImageUrl(product.id, primary.id, primary.url) : product.image;
+    })(),
     sizes: product.sizes,
     tags: product.tags,
     createdAt: product.createdAt.toISOString(),
@@ -56,11 +63,13 @@ function presentAdminProduct(product: AdminProduct) {
       || product._count.wholesaleOrderItems > 0,
     images: product.images.map(image => ({
       id: image.id,
-      url: image.url,
+      url: presentManagedImageUrl(product.id, image.id, image.url),
       isPrimary: image.isPrimary,
       sortOrder: image.sortOrder,
       mimeType: image.mimeType,
       sizeBytes: image.sizeBytes,
+      storageProvider: image.storageProvider,
+      publicId: image.publicId,
       createdAt: image.createdAt.toISOString(),
     })),
   };
@@ -243,7 +252,7 @@ export class AdminProductsService {
     if (this.hasProtectedReferences(product)) return this.archive(adminId, product);
 
     for (const image of product.images) {
-      await this.imageStorage.remove(image.storageKey);
+      await this.imageStorage.remove(image.storageKey, image.storageProvider, image.publicId);
     }
     try {
       await this.prisma.product.delete({ where: { id: productId } });
@@ -296,6 +305,8 @@ export class AdminProductsService {
           productId,
           url: stored.url,
           storageKey: stored.storageKey,
+          storageProvider: stored.storageProvider,
+          publicId: stored.publicId,
           filename: stored.filename,
           mimeType: stored.mimeType,
           sizeBytes: stored.sizeBytes,
@@ -393,7 +404,7 @@ export class AdminProductsService {
         });
       }
     });
-    await this.imageStorage.remove(image.storageKey);
+    await this.imageStorage.remove(image.storageKey, image.storageProvider, image.publicId);
     await this.activity.record({
       adminId,
       action: 'product.image_deleted',

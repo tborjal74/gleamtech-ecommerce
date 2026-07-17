@@ -50,7 +50,7 @@ export interface AdminProduct {
   updatedAt: string;
   hasOrderHistory: boolean;
   hasReferences: boolean;
-  images: Array<{ id: string; url: string; isPrimary: boolean; sortOrder: number; mimeType: string; sizeBytes: number; createdAt: string }>;
+  images: Array<{ id: string; url: string; isPrimary: boolean; sortOrder: number; mimeType: string; sizeBytes: number; storageProvider?: string; publicId?: string | null; createdAt: string }>;
 }
 
 export interface HomepageContent {
@@ -388,9 +388,13 @@ function normalizeImageUrl(image: string): string {
   if (!image) return image;
   if (image.startsWith("assets/")) return asset(image.replace("assets/", ""));
   if (image.startsWith("/assets/")) return asset(image.replace("/assets/", ""));
-  if (image.startsWith("/uploads/")) return `${API_BASE_URL}${image}`;
+  const uploadedProductImage = image.match(/^\/uploads\/products\/([^/]+)$/);
+  if (uploadedProductImage) return `${API_BASE_URL}/api/uploads/products/${uploadedProductImage[1]}`;
+  if (image.startsWith("/api/")) return `${API_BASE_URL}${image}`;
   try {
     const url = new URL(image);
+    const uploadedAbsoluteImage = url.pathname.match(/^\/uploads\/products\/([^/]+)$/);
+    if (uploadedAbsoluteImage) return `${API_BASE_URL}/api/uploads/products/${uploadedAbsoluteImage[1]}`;
     if (url.pathname.startsWith("/uploads/")) return `${API_BASE_URL}${url.pathname}`;
   } catch {
     undefined;

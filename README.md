@@ -53,3 +53,7 @@
   Product, inventory, homepage, promotion, and review content is read from the live PostgreSQL database. Product demo data is not seeded during install, build, migration, or application startup. Manage storefront records through the administrator screens.
 
   Deployments should run `npm run db:deploy` before starting the server. Do not add a product seed command to the build or start command: migrations change the schema, while administrator actions own production content.
+
+  Product uploads should use Cloudinary in production. Set the backend-only Render variable `CLOUDINARY_URL` to the value from the Cloudinary console (`cloudinary://API_KEY:API_SECRET@CLOUD_NAME`), then run the normal migration and build commands. New uploads are stored in Cloudinary and their CDN URLs plus public IDs are stored in PostgreSQL; deleting a product image also removes the Cloudinary asset. Never expose `CLOUDINARY_URL` or the API secret to the frontend.
+
+  If `CLOUDINARY_URL` is absent, local storage remains available for local development. Existing local uploads must be re-uploaded once to move them to Cloudinary. Missing image files intentionally return 404 so failed uploads and lost storage are visible in the browser console.

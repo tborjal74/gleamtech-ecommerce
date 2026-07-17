@@ -3,12 +3,34 @@ import { OrderStatus, PaymentStatus, Prisma } from '@prisma/client';
 
 import { ApiError } from '../common/api-error.js';
 import { PrismaService } from '../database/prisma.service.js';
+import { ProductImageStorageService, type ServedProductImage } from '../uploads/product-image-storage.service.js';
 import type { CreateProductReviewDto } from './dto/create-product-review.dto.js';
 import { presentProduct } from './product.presenter.js';
 
 @Injectable()
 export class CatalogService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly imageStorage: ProductImageStorageService,
+  ) {}
+
+  async productImage(productId: string, imageId?: string): Promise<ServedProductImage> {
+    const image = imageId
+      ? await this.prisma.productImage.findFirst({ where: { id: imageId, productId }, select: { storageKey: true } })
+      : await this.prisma.productImage.findFirst({
+        where: { productId, isPrimary: true },
+        select: { storageKey: true },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      });
+    if (!image) {
+      throw new ApiError(HttpStatus.NOT_FOUND, 'PRODUCT_NOT_FOUND', 'Product image was not found.', { productId, imageId });
+    }
+    const stored = await this.imageStorage.read(image.storageKey);
+    if (!stored) {
+      throw new ApiError(HttpStatus.NOT_FOUND, 'PRODUCT_NOT_FOUND', 'Product image was not found.', { productId, imageId });
+    }
+    return stored;
+  }
 
   async homepageContent() {
     const [content, reviews, reviewSummary] = await Promise.all([

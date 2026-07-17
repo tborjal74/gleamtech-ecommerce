@@ -4,6 +4,10 @@ import { minorToAmount } from '../common/money.js';
 
 type ProductWithInventory = Product & { inventory: Inventory | null };
 
+function presentImageUrl(productId: string, image: string) {
+  return image.startsWith('/uploads/products/') ? `/api/products/${productId}/image` : image;
+}
+
 export function presentProduct(product: ProductWithInventory) {
   const availableQuantity = product.inventory?.stockQuantity ?? 0;
 
@@ -24,7 +28,7 @@ export function presentProduct(product: ProductWithInventory) {
     isEco: product.isEco,
     inStock: product.active && availableQuantity > 0,
     availableQuantity,
-    image: product.image,
+    image: presentImageUrl(product.id, product.image),
     badge: product.badge ?? (availableQuantity <= 0 ? 'Out of Stock' : undefined),
     sizes: product.sizes,
     tags: product.tags,

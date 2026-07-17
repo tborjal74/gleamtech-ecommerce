@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 
 import type { AuthenticatedRequest } from '../authentication/auth.types.js';
 import { CurrentAuth } from '../authentication/current-auth.decorator.js';
@@ -14,6 +15,16 @@ export class CatalogController {
   @Get()
   listProducts() {
     return this.catalogService.listActiveProducts();
+  }
+
+  @Get(':productId/image')
+  async getPrimaryImage(@Param('productId') productId: string, @Res() response: Response) {
+    return this.sendImage(response, await this.catalogService.productImage(productId));
+  }
+
+  @Get(':productId/images/:imageId')
+  async getImage(@Param('productId') productId: string, @Param('imageId') imageId: string, @Res() response: Response) {
+    return this.sendImage(response, await this.catalogService.productImage(productId, imageId));
   }
 
   @Get(':productId')
@@ -40,6 +51,14 @@ export class CatalogController {
   @UseGuards(SessionAuthGuard, CsrfGuard)
   requestStockNotification(@CurrentAuth() auth: AuthenticatedRequest, @Param('productId') productId: string) {
     return this.catalogService.requestStockNotification(auth.user.id, productId);
+  }
+
+  private sendImage(response: Response, image: { buffer: Buffer; mimeType: string }) {
+    response
+      .setHeader('Content-Type', image.mimeType)
+      .setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+      .status(200)
+      .send(image.buffer);
   }
 }
 

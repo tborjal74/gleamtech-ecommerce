@@ -39,7 +39,7 @@ describe('CatalogService homepage content', () => {
         aggregate: jest.fn().mockResolvedValue({ _avg: { rating: 5 }, _count: { _all: 1 } }),
       },
     };
-    const service = new CatalogService(prisma as never);
+    const service = new CatalogService(prisma as never, {} as never);
 
     const result = await service.homepageContent();
 
@@ -61,7 +61,7 @@ describe('CatalogService homepage content', () => {
         aggregate: jest.fn().mockResolvedValue({ _avg: { rating: null }, _count: { _all: 0 } }),
       },
     };
-    const service = new CatalogService(prisma as never);
+    const service = new CatalogService(prisma as never, {} as never);
 
     await expect(service.homepageContent()).resolves.toEqual({
       content: null,
