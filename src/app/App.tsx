@@ -1,7 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Toaster, toast } from "sonner";
-import { api, ApiClientError, isAuthRequiredError, type HomepageContent, type PromoCode, type PublicUser } from "./api";
+import {
+  api,
+  ApiClientError,
+  isAuthRequiredError,
+  type HomepageContent,
+  type PromoCode,
+  type PublicUser,
+  type ReviewSummary,
+  type StorefrontReview,
+} from "./api";
 import { StoreHeader } from "./store/StoreHeader";
 import { StoreFooter } from "./store/StoreFooter";
 import { CookieConsent, type CookieConsentChoice } from "./store/CookieConsent";
@@ -26,7 +35,6 @@ import type { CartItem, Page, Product } from "./store/types";
 const GOOGLE_GSI_SCRIPT_SRC = "https://accounts.google.com/gsi/client?hl=en";
 const AUTH_STORAGE_KEY = "gleamtech_auth";
 const COOKIE_CONSENT_STORAGE_KEY = "gleamtech_cookie_consent";
-const PRODUCT_SYNC_INTERVAL_MS = 60_000;
 const SUPPORT_PAGES = ["delivery-info", "returns-refunds", "track-order", "faq", "contact-us"] as const;
 const INFO_PAGES = ["about-us", "sustainability", "sitemap", "privacy-policy", "terms-conditions", "cookie-settings"] as const;
 const ADMIN_OPERATION_PAGES = ["admin-activity", "admin-payments", "admin-inventory", "admin-customers", "admin-reports", "admin-promos", "admin-homepage"] as const;
@@ -105,6 +113,8 @@ export default function App() {
   const [productLoading, setProductLoading] = useState(true);
   const [productError, setProductError] = useState("");
   const [homepageContent, setHomepageContent] = useState<HomepageContent | null>(null);
+  const [storefrontReviews, setStorefrontReviews] = useState<StorefrontReview[]>([]);
+  const [reviewSummary, setReviewSummary] = useState<ReviewSummary>({ average: 0, count: 0 });
   const [promos, setPromos] = useState<PromoCode[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -170,6 +180,8 @@ export default function App() {
   const refreshStoreContent = useCallback(async () => {
     const [homepageResult, promoResult] = await Promise.all([api.homepage(), api.promos()]);
     setHomepageContent(homepageResult.content);
+    setStorefrontReviews(homepageResult.reviews);
+    setReviewSummary(homepageResult.reviewSummary);
     setPromos(promoResult.promos);
   }, []);
 
@@ -248,24 +260,6 @@ export default function App() {
       setCookieConsentOpen(true);
     }
   }, []);
-
-  useEffect(() => {
-    const syncProducts = () => {
-      void refreshProducts({ silent: true }).catch(() => undefined);
-      void refreshStoreContent().catch(() => undefined);
-    };
-    const onVisibilityChange = () => {
-      if (!document.hidden) syncProducts();
-    };
-    window.addEventListener("focus", syncProducts);
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    const interval = window.setInterval(syncProducts, PRODUCT_SYNC_INTERVAL_MS);
-    return () => {
-      window.removeEventListener("focus", syncProducts);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.clearInterval(interval);
-    };
-  }, [refreshProducts, refreshStoreContent]);
 
   useEffect(() => {
     if (!selectedProduct) return;
@@ -545,6 +539,8 @@ export default function App() {
             productError={productError}
             onRefreshProducts={() => refreshProducts()}
             content={homepageContent}
+            reviews={storefrontReviews}
+            reviewSummary={reviewSummary}
           />
         )}
         {page === "listing" && (

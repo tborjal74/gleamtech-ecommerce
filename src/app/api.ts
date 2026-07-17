@@ -73,6 +73,21 @@ export interface HomepageContent {
 
 export type HomepageContentInput = Omit<HomepageContent, "updatedAt">;
 
+export interface StorefrontReview {
+  id: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+  verified: boolean;
+  customerName: string;
+  productName: string;
+}
+
+export interface ReviewSummary {
+  average: number;
+  count: number;
+}
+
 export interface PromoCode {
   id: string;
   code: string;
@@ -678,8 +693,15 @@ export const api = {
     return request<{ orders: CustomerOrder[]; pagination: Pagination }>(`/api/orders${query}`);
   },
   async homepage() {
-    const response = await request<{ content: HomepageContent }>("/api/homepage");
-    return { content: normalizeHomepageContent(response.content) };
+    const response = await request<{
+      content: HomepageContent | null;
+      reviews: StorefrontReview[];
+      reviewSummary: ReviewSummary;
+    }>("/api/homepage");
+    return {
+      ...response,
+      content: response.content ? normalizeHomepageContent(response.content) : null,
+    };
   },
   promos() {
     return request<{ promos: PromoCode[] }>("/api/promos");

@@ -3,7 +3,6 @@ import { Bell, ChevronRight, Heart, ShoppingCart, Share2, Check, Truck, RotateCc
 import { toast } from "sonner";
 import { RatingStars, Badge, QtySelector } from "../ui";
 import { ProductCard } from "../ProductCard";
-import { REVIEWS } from "../data";
 import { cn } from "../../components/ui/utils";
 import type { Product, Page } from "../types";
 import { formatCurrency } from "../currency";
@@ -478,31 +477,11 @@ export function ProductPage({ product, onAddToCart, onViewProduct, onNavigate, u
                 ))}
               </div>
             )}
-            <div className="space-y-4">
-              {REVIEWS.slice(0, 3).map(review => (
-                <div key={review.id} className="p-5 rounded-2xl border border-border bg-card">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                        style={{ background: "var(--green)" }}
-                      >
-                        {review.avatar}
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">{review.name}</p>
-                        <p className="text-xs text-muted-foreground">{review.date}</p>
-                      </div>
-                    </div>
-                    <RatingStars rating={review.rating} size={13} />
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">"{review.text}"</p>
-                  {review.verified && (
-                    <p className="text-xs text-[var(--green)] mt-2">✓ Verified Purchase</p>
-                  )}
-                </div>
-              ))}
-            </div>
+            {reviews.length === 0 && (
+              <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
+                No verified reviews have been submitted for this product yet.
+              </div>
+            )}
           </div>
         )}
       </div>

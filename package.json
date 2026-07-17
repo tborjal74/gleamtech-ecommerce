@@ -13,7 +13,6 @@
     "db:reset-orders": "tsx prisma/reset-orders.ts",
     "prestart": "prisma generate",
     "load:catalog": "k6 run load/catalog.js",
-    "db:seed": "tsx prisma/seed.ts",
     "db:seed-admin": "tsx prisma/seed-admin.ts",
     "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
     "dev:client": "vite",
@@ -133,9 +132,6 @@
     "overrides": {
       "vite": "6.3.5"
     }
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
   },
   "allowScripts": {
     "bcrypt@6.0.0": true,

@@ -2,9 +2,8 @@ import React, { useState } from "react";
 import { ArrowRight, Leaf, Truck, ShieldCheck, Star, Package, ChevronRight } from "lucide-react";
 import { ProductCard } from "../ProductCard";
 import { RatingStars, Badge, SectionHeader } from "../ui";
-import { CATEGORIES, REVIEWS } from "../data";
 import type { Product, Page } from "../types";
-import type { HomepageContent } from "../../api";
+import type { HomepageContent, ReviewSummary, StorefrontReview } from "../../api";
 
 const heroAsset = (filename: string) => new URL(`../../../../assets/${filename}`, import.meta.url).href;
 
@@ -19,6 +18,8 @@ interface HomePageProps {
   productError: string;
   onRefreshProducts: () => Promise<void>;
   content: HomepageContent | null;
+  reviews: StorefrontReview[];
+  reviewSummary: ReviewSummary;
 }
 
 const DEFAULT_HOME_CONTENT = {
@@ -44,10 +45,23 @@ const BASE_BENEFITS = [
   { icon: Truck, title: "Delivery Support", desc: "Delivery coordination is provided after payment confirmation", color: "var(--blue-light)", accent: "var(--blue)" },
 ];
 
-export function HomePage({ onAddToCart, onViewProduct, onNavigate, wishlist, onToggleWishlist, products, productLoading, productError, onRefreshProducts, content }: HomePageProps) {
+const CATEGORY_COLORS = ["#EAF7E7", "#E8F7FA", "#EAF4FD", "#FFF6D8", "#F6EEFF", "#FFF0EA"];
+
+export function HomePage({ onAddToCart, onViewProduct, onNavigate, wishlist, onToggleWishlist, products, productLoading, productError, onRefreshProducts, content, reviews, reviewSummary }: HomePageProps) {
   const bestSellers = products.filter(p => p.inStock).slice(0, 4);
   const home = content ?? DEFAULT_HOME_CONTENT;
   const headlineParts = home.headline.split(",");
+  const categories = Array.from(
+    products.reduce((items, product) => {
+      const current = items.get(product.category);
+      items.set(product.category, {
+        name: product.category,
+        count: (current?.count ?? 0) + 1,
+        image: current?.image || product.image,
+      });
+      return items;
+    }, new Map<string, { name: string; count: number; image: string }>()),
+  ).map(([id, category], index) => ({ ...category, id, color: CATEGORY_COLORS[index % CATEGORY_COLORS.length] }));
   const benefits = [
     ...BASE_BENEFITS,
     { icon: Package, title: home.promiseOneTitle, desc: home.promiseOneText, color: "var(--yellow-light)", accent: "var(--yellow)" },
@@ -89,7 +103,9 @@ export function HomePage({ onAddToCart, onViewProduct, onNavigate, wishlist, onT
             </div>
             {/* Trust signals */}
             <div className="flex flex-wrap items-center gap-5 mt-8 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1.5"><Star size={14} fill="var(--yellow)" stroke="none" /><strong className="text-foreground">4.8/5</strong> from 2,400+ reviews</span>
+              {reviewSummary.count > 0 && (
+                <span className="flex items-center gap-1.5"><Star size={14} fill="var(--yellow)" stroke="none" /><strong className="text-foreground">{reviewSummary.average}/5</strong> from {reviewSummary.count.toLocaleString()} review{reviewSummary.count === 1 ? "" : "s"}</span>
+              )}
               <span className="flex items-center gap-1.5"><Truck size={14} /> Delivery coordinated after payment</span>
               <span className="flex items-center gap-1.5"><Leaf size={14} style={{ color: "var(--green)" }} /> Bright home essentials</span>
             </div>
@@ -138,7 +154,7 @@ export function HomePage({ onAddToCart, onViewProduct, onNavigate, wishlist, onT
           }
         />
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          {CATEGORIES.map(cat => (
+          {categories.map(cat => (
             <button
               key={cat.id}
               onClick={() => onNavigate("listing")}
@@ -178,7 +194,7 @@ export function HomePage({ onAddToCart, onViewProduct, onNavigate, wishlist, onT
           {productLoading ? (
             <CatalogState text="Loading live products..." />
           ) : productError ? (
-            <CatalogState text="Product catalog is unavailable." actionLabel="Retry sync" onAction={onRefreshProducts} />
+            <CatalogState text="Product catalog is unavailable." actionLabel="Retry" onAction={onRefreshProducts} />
           ) : bestSellers.length === 0 ? (
             <CatalogState text="No published products are available yet." />
           ) : (
@@ -260,14 +276,14 @@ export function HomePage({ onAddToCart, onViewProduct, onNavigate, wishlist, onT
       </section>
 
       {/* ── Reviews ──────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-6 py-16">
+      {reviews.length > 0 && <section className="max-w-7xl mx-auto px-6 py-16">
         <SectionHeader
           eyebrow="Customer Love"
           title="What Our Customers Say"
           subtitle="Real reviews from real households"
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {REVIEWS.map(review => (
+          {reviews.map(review => (
             <div key={review.id} className="bg-card rounded-2xl border border-border p-5 flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <RatingStars rating={review.rating} size={14} />
@@ -275,19 +291,19 @@ export function HomePage({ onAddToCart, onViewProduct, onNavigate, wishlist, onT
                   <span className="text-xs text-[var(--green)] font-medium">✓ Verified</span>
                 )}
               </div>
-              <p className="text-sm text-foreground leading-relaxed flex-1">"{review.text}"</p>
+              <p className="text-sm text-foreground leading-relaxed flex-1">"{review.comment}"</p>
               <div>
-                <p className="text-xs text-muted-foreground">{review.product}</p>
+                <p className="text-xs text-muted-foreground">{review.productName}</p>
                 <div className="flex items-center gap-2 mt-2">
                   <div
                     className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold"
                     style={{ background: "var(--green)" }}
                   >
-                    {review.avatar}
+                    {review.customerName.charAt(0)}
                   </div>
                   <div>
-                    <p className="text-xs font-medium text-foreground">{review.name}</p>
-                    <p className="text-xs text-muted-foreground">{review.date}</p>
+                    <p className="text-xs font-medium text-foreground">{review.customerName}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(review.createdAt).toLocaleDateString()}</p>
                   </div>
                 </div>
               </div>
@@ -297,27 +313,12 @@ export function HomePage({ onAddToCart, onViewProduct, onNavigate, wishlist, onT
         {/* Overall rating */}
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 p-6 rounded-2xl border border-border bg-card">
           <div className="text-center sm:text-left">
-            <div className="text-5xl font-black text-foreground">4.8</div>
-            <RatingStars rating={4.8} size={20} />
-            <p className="text-sm text-muted-foreground mt-1">Based on 2,400+ reviews</p>
-          </div>
-          <div className="w-px h-16 bg-border hidden sm:block" />
-          <div className="grid grid-cols-5 gap-2 text-xs text-muted-foreground">
-            {[5,4,3,2,1].map(n => (
-              <div key={n} className="flex items-center gap-2">
-                <span className="w-3 text-right">{n}</span>
-                <Star size={10} fill="var(--yellow)" stroke="none" />
-                <div className="w-24 h-1.5 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full rounded-full"
-                    style={{ background: "var(--yellow)", width: `${[72, 18, 6, 3, 1][5-n]}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+            <div className="text-5xl font-black text-foreground">{reviewSummary.average}</div>
+            <RatingStars rating={reviewSummary.average} size={20} />
+            <p className="text-sm text-muted-foreground mt-1">Based on {reviewSummary.count.toLocaleString()} review{reviewSummary.count === 1 ? "" : "s"}</p>
           </div>
         </div>
-      </section>
+      </section>}
     </main>
   );
 }
@@ -340,7 +341,7 @@ function CatalogState({ text, actionLabel, onAction }: { text: string; actionLab
           disabled={busy}
           className="mt-4 h-10 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {busy ? "Syncing..." : actionLabel}
+          {busy ? "Loading..." : actionLabel}
         </button>
       )}
     </div>

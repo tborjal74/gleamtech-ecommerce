@@ -11,13 +11,24 @@ export class CatalogService {
   constructor(private readonly prisma: PrismaService) {}
 
   async homepageContent() {
-    const content = await this.prisma.homepageContent.upsert({
-      where: { id: 'home' },
-      update: {},
-      create: { id: 'home' },
-    });
+    const [content, reviews, reviewSummary] = await Promise.all([
+      this.prisma.homepageContent.findUnique({ where: { id: 'home' } }),
+      this.prisma.productReview.findMany({
+        include: {
+          user: { select: { firstName: true, lastName: true } },
+          product: { select: { name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 4,
+      }),
+      this.prisma.productReview.aggregate({
+        _avg: { rating: true },
+        _count: { _all: true },
+      }),
+    ]);
+
     return {
-      content: {
+      content: content ? {
         eyebrow: content.eyebrow,
         headline: content.headline,
         subheadline: content.subheadline,
@@ -34,6 +45,19 @@ export class CatalogService {
         promiseTwoTitle: content.promiseTwoTitle,
         promiseTwoText: content.promiseTwoText,
         updatedAt: content.updatedAt.toISOString(),
+      } : null,
+      reviews: reviews.map(review => ({
+        id: review.id,
+        rating: review.rating,
+        comment: review.comment,
+        createdAt: review.createdAt.toISOString(),
+        verified: true,
+        customerName: `${review.user.firstName} ${review.user.lastName.charAt(0)}.`,
+        productName: review.product.name,
+      })),
+      reviewSummary: {
+        average: Number((reviewSummary._avg.rating ?? 0).toFixed(1)),
+        count: reviewSummary._count._all,
       },
     };
   }

@@ -62,7 +62,7 @@ function CatalogState({ text, actionLabel, onAction }: { text: string; actionLab
           disabled={busy}
           className="mt-4 h-10 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {busy ? "Syncing..." : actionLabel}
+          {busy ? "Loading..." : actionLabel}
         </button>
       )}
     </div>
@@ -329,7 +329,7 @@ export function ListingPage({ onAddToCart, onViewProduct, onNavigate, wishlist, 
           {productLoading ? (
             <CatalogState text="Loading live products..." />
           ) : productError ? (
-            <CatalogState text="Product catalog is unavailable." actionLabel="Retry sync" onAction={onRefreshProducts} />
+            <CatalogState text="Product catalog is unavailable." actionLabel="Retry" onAction={onRefreshProducts} />
           ) : sorted.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <div className="text-5xl mb-4">🔍</div>

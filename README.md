@@ -45,4 +45,11 @@
   - `npm run dev:server` starts the backend only.
   - `npm run build:server` compiles the backend into `dist/server`.
   - `npm start` runs the compiled backend.
-  
+  - `npm run db:deploy` applies committed database migrations.
+  - `npm run db:seed-admin` explicitly creates or updates the initial administrator account.
+
+## Database data policy
+
+  Product, inventory, homepage, promotion, and review content is read from the live PostgreSQL database. Product demo data is not seeded during install, build, migration, or application startup. Manage storefront records through the administrator screens.
+
+  Deployments should run `npm run db:deploy` before starting the server. Do not add a product seed command to the build or start command: migrations change the schema, while administrator actions own production content.
