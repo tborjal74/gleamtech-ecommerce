@@ -49,6 +49,7 @@ export interface AdminProduct {
   createdAt: string;
   updatedAt: string;
   hasOrderHistory: boolean;
+  hasReferences: boolean;
   images: Array<{ id: string; url: string; isPrimary: boolean; sortOrder: number; mimeType: string; sizeBytes: number; createdAt: string }>;
 }
 
@@ -410,6 +411,7 @@ function normalizeAdminProduct(product: AdminProduct): AdminProduct {
   const primaryImageUrl = normalizeImageUrl(product.primaryImageUrl);
   return {
     ...product,
+    hasReferences: product.hasReferences ?? product.hasOrderHistory,
     primaryImageUrl,
     images: product.images.map(image => ({
       ...image,

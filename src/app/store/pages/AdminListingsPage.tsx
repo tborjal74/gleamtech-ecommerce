@@ -102,7 +102,9 @@ export function AdminListingsPage({ onNavigate, onProductsChanged }: { onNavigat
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [search, setSearch] = useState("");
   const [published, setPublished] = useState("");
-  const [active, setActive] = useState("");
+  // Archived products remain in the database for order-history integrity, but
+  // should disappear from the default working list after an archive action.
+  const [active, setActive] = useState("true");
   const [page, setPage] = useState(1);
   const [pageCount, setPageCount] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -129,13 +131,15 @@ export function AdminListingsPage({ onNavigate, onProductsChanged }: { onNavigat
     try {
       const result = await api.adminProducts(query);
       setProducts(result.products);
-      setPageCount(Math.max(result.pagination.pageCount, 1));
+      const nextPageCount = Math.max(result.pagination.pageCount, 1);
+      setPageCount(nextPageCount);
+      if (page > nextPageCount) setPage(nextPageCount);
     } catch (error) {
       toast.error(apiMessage(error));
     } finally {
       setLoading(false);
     }
-  }, [query]);
+  }, [page, query]);
 
   useEffect(() => {
     void load();
@@ -228,6 +232,13 @@ export function AdminListingsPage({ onNavigate, onProductsChanged }: { onNavigat
         toast.warning("Listing changed, but the storefront catalog could not refresh yet.");
       });
     } catch (error) {
+      if (error instanceof ApiClientError && error.body.code === "PRODUCT_NOT_FOUND") {
+        setConfirmingDelete(null);
+        toast.info("That listing was already removed. Refreshing listings.");
+        await load();
+        await onProductsChanged().catch(() => undefined);
+        return;
+      }
       toast.error(apiMessage(error));
     }
   };
@@ -513,8 +524,8 @@ export function AdminListingsPage({ onNavigate, onProductsChanged }: { onNavigat
           <div className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-2xl">
             <h2 className="text-lg font-bold text-foreground">Delete listing?</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              {confirmingDelete.hasOrderHistory
-                ? "This product appears in order history, so it will be archived and unpublished instead of permanently deleted."
+              {confirmingDelete.hasReferences
+                ? "This product is referenced by existing store records, so it will be archived and unpublished instead of permanently deleted."
                 : "This product has no order history and can be permanently deleted."}
             </p>
             <div className="mt-5 flex justify-end gap-3">

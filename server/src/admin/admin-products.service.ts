@@ -13,7 +13,11 @@ import type { UpdateAdminProductDto } from './dto/update-admin-product.dto.js';
 const MAX_PRODUCT_IMAGES = 8;
 
 type AdminProduct = Prisma.ProductGetPayload<{
-  include: { inventory: true; images: true; _count: { select: { orderItems: true } } };
+  include: {
+    inventory: true;
+    images: true;
+    _count: { select: { orderItems: true; cartItems: true; wishlistItems: true; wholesaleOrderItems: true } };
+  };
 }>;
 
 function slugify(value: string) {
@@ -46,6 +50,10 @@ function presentAdminProduct(product: AdminProduct) {
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
     hasOrderHistory: product._count.orderItems > 0,
+    hasReferences: product._count.orderItems > 0
+      || product._count.cartItems > 0
+      || product._count.wishlistItems > 0
+      || product._count.wholesaleOrderItems > 0,
     images: product.images.map(image => ({
       id: image.id,
       url: image.url,
@@ -223,28 +231,40 @@ export class AdminProductsService {
   }
 
   async delete(adminId: string, productId: string) {
-    const product = await this.findProduct(productId);
-    if (product._count.orderItems > 0) {
-      const archived = await this.prisma.product.update({
-        where: { id: productId },
-        data: { active: false, isPublished: false },
-        include: this.includeProduct(),
-      });
-      await this.activity.record({
-        adminId,
-        action: 'product.archived',
-        entityType: 'product',
-        entityId: productId,
-        description: `Archived listing ${archived.name}`,
-        metadata: { sku: archived.sku },
-      });
-      return { mode: 'archived' as const, product: presentAdminProduct(archived) };
-    }
+    // Deletion is idempotent so a stale admin tab cannot turn an already
+    // removed product into a confusing 404. The subsequent list refresh will
+    // remove it from the current page.
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      include: this.includeProduct(),
+    });
+    if (!product) return { mode: 'deleted' as const, productId };
+
+    if (this.hasProtectedReferences(product)) return this.archive(adminId, product);
 
     for (const image of product.images) {
       await this.imageStorage.remove(image.storageKey);
     }
-    await this.prisma.product.delete({ where: { id: productId } });
+    try {
+      await this.prisma.product.delete({ where: { id: productId } });
+    } catch (error) {
+      // Another admin may have removed it after the lookup above. Treat that
+      // race the same as a successful idempotent delete.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        return { mode: 'deleted' as const, productId };
+      }
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+        // A related cart/order may have been added between the lookup and the
+        // delete. Preserve the record instead of returning a 500.
+        const latest = await this.prisma.product.findUnique({
+          where: { id: productId },
+          include: this.includeProduct(),
+        });
+        if (latest) return this.archive(adminId, latest);
+        return { mode: 'deleted' as const, productId };
+      }
+      throw error;
+    }
     await this.activity.record({
       adminId,
       action: 'product.deleted',
@@ -389,8 +409,39 @@ export class AdminProductsService {
     return {
       inventory: true,
       images: { orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }] },
-      _count: { select: { orderItems: true } },
+      _count: {
+        select: {
+          orderItems: true,
+          cartItems: true,
+          wishlistItems: true,
+          wholesaleOrderItems: true,
+        },
+      },
     };
+  }
+
+  private hasProtectedReferences(product: AdminProduct) {
+    return product._count.orderItems > 0
+      || product._count.cartItems > 0
+      || product._count.wishlistItems > 0
+      || product._count.wholesaleOrderItems > 0;
+  }
+
+  private async archive(adminId: string, product: AdminProduct) {
+    const archived = await this.prisma.product.update({
+      where: { id: product.id },
+      data: { active: false, isPublished: false },
+      include: this.includeProduct(),
+    });
+    await this.activity.record({
+      adminId,
+      action: 'product.archived',
+      entityType: 'product',
+      entityId: product.id,
+      description: `Archived listing ${archived.name}`,
+      metadata: { sku: archived.sku },
+    });
+    return { mode: 'archived' as const, product: presentAdminProduct(archived) };
   }
 
   private async findProduct(productId: string) {
