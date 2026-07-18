@@ -6,6 +6,7 @@ import type { CartItem, Page } from "../types";
 import { formatCurrency } from "../currency";
 import { api, type CustomerAddress, type PromoCode, type PublicUser } from "../../api";
 import { BANK_TRANSFER_DETAILS, gcashQrUrl } from "../paymentDetails";
+import { ProductImage } from "../ProductImage";
 
 interface CheckoutPageProps {
   cartItems: CartItem[];
@@ -505,7 +506,7 @@ export function CheckoutPage({ cartItems, promo, onNavigate, onPlaceOrder, user 
               {cartItems.map(item => (
                 <div key={`${item.product.id}-${item.size}`} className="flex gap-3 items-center">
                   <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-secondary shrink-0">
-                    <img src={item.product.image} alt={item.product.name} className="w-full h-full object-cover" />
+                    <ProductImage product={item.product} className="h-full w-full object-cover" />
                     <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[var(--green)] text-white text-[9px] flex items-center justify-center font-bold">
                       {item.qty}
                     </span>

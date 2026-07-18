@@ -4,6 +4,7 @@ import { OrderStatus, PaymentStatus, Prisma, UserRole } from '@prisma/client';
 import { ApiError } from '../common/api-error.js';
 import { canonicalizeHomepageImages } from '../common/homepage-assets.js';
 import { minorToAmount } from '../common/money.js';
+import { canonicalProductImagePath } from '../common/product-assets.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { ProductImageStorageService, type UploadedImageFile } from '../uploads/product-image-storage.service.js';
 import type { UpsertPromoCodeDto } from './dto/admin-promo.dto.js';
@@ -310,7 +311,7 @@ export class AdminOperationsService {
         id: product.id,
         sku: product.sku,
         name: product.name,
-        image: product.image,
+        image: canonicalProductImagePath(product.image),
         stockQuantity: product.inventory?.stockQuantity ?? 0,
         active: product.active,
         isPublished: product.isPublished,

@@ -3,6 +3,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 
 import { ApiError } from '../common/api-error.js';
 import { minorToAmount } from '../common/money.js';
+import { canonicalProductImagePath } from '../common/product-assets.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { EmailService } from '../email/email.service.js';
 import { AdminActivityService } from './admin-activity.service.js';
@@ -98,7 +99,7 @@ function presentOrderDetail(order: AdminOrderDetail) {
       quantity: item.quantity,
       lineTotalCents: item.lineTotalMinor,
       lineTotal: minorToAmount(item.lineTotalMinor),
-      image: item.product.image,
+      image: canonicalProductImagePath(item.product.image),
     })),
     customerNote: order.customerNote ?? '',
     requests: order.requests.map(request => ({

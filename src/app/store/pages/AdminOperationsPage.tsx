@@ -15,6 +15,7 @@ import {
   type PromoCodeInput,
 } from "../../api";
 import { formatCurrency } from "../currency";
+import { ProductImage } from "../ProductImage";
 
 export type AdminOperationsSection = "activity" | "payments" | "inventory" | "customers" | "reports" | "promos" | "homepage";
 
@@ -287,7 +288,7 @@ function InventoryPanel() {
         {products.map(product => (
           <div key={product.id} className="grid gap-3 px-4 py-3 lg:grid-cols-[1fr_120px_100px_120px_120px] lg:items-center">
             <div className="flex items-center gap-3">
-              <img src={product.image} alt={product.name} className="h-12 w-12 rounded-xl border border-border bg-white object-contain p-1" />
+              <ProductImage product={product} className="h-12 w-12 rounded-xl border border-border bg-white object-contain p-1" />
               <div>
                 <p className="font-semibold text-foreground">{product.name}</p>
                 <p className="text-xs text-muted-foreground">{product.sku}</p>
@@ -424,7 +425,7 @@ function StockEditorDialog({
           </button>
         </div>
         <div className="mt-4 flex items-center gap-3 rounded-xl border border-border bg-secondary/50 p-4">
-          <img src={product.image} alt={product.name} className="h-14 w-14 rounded-xl border border-border bg-white object-contain p-1" />
+          <ProductImage product={product} className="h-14 w-14 rounded-xl border border-border bg-white object-contain p-1" />
           <div className="min-w-0">
             <p className="truncate font-semibold text-foreground">{product.name}</p>
             <p className="text-xs text-muted-foreground">{product.sku}</p>

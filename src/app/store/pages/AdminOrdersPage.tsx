@@ -3,6 +3,7 @@ import { Calendar, ChevronRight, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiClientError, type AdminOrderDetail, type AdminOrderSummary } from "../../api";
 import { formatCurrency } from "../currency";
+import { ProductImage } from "../ProductImage";
 
 function apiMessage(error: unknown) {
   return error instanceof ApiClientError
@@ -292,11 +293,10 @@ export function AdminOrdersPage() {
                 {selected.items.map(item => (
                   <div key={item.id} className="flex items-center gap-4 px-4 py-3">
                     <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-white p-1">
-                      <img
+                      <ProductImage
+                        product={{ name: item.productName, sku: item.productSku }}
                         src={item.image}
-                        alt={item.productName}
                         className="h-full w-full object-contain"
-                        loading="lazy"
                       />
                     </div>
                     <div className="flex-1">

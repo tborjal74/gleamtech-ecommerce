@@ -4,7 +4,8 @@ import { toast } from "sonner";
 import { api, ApiClientError, type AdminProduct, type AdminProductInput } from "../../api";
 import { formatCurrency } from "../currency";
 import type { Page } from "../types";
-import { assetProductImage, fallbackProductImage } from "../productImages";
+import { assetProductImage } from "../productImages";
+import { ProductImage } from "../ProductImage";
 
 type ListingForm = {
   sku: string;
@@ -553,7 +554,7 @@ export function AdminListingsPage({ onNavigate, onProductsChanged }: { onNavigat
                   <div className="mb-4 grid gap-3 sm:grid-cols-2">
                     {editing.images.map((image, index) => (
                       <div key={image.id} className="rounded-xl border border-border p-3">
-                        <img src={image.url} alt={`${editing.name} image ${index + 1}`} className="h-32 w-full rounded-lg bg-secondary object-cover" />
+                        <ProductImage product={editing} src={image.url} alt={`${editing.name} image ${index + 1}`} className="h-32 w-full rounded-lg bg-secondary object-cover" />
                         <div className="mt-3 flex flex-wrap gap-2">
                           <button disabled={image.isPrimary || imageAction} onClick={() => setPrimaryImage(image.id)} className="h-8 rounded-lg border border-border px-2 text-xs font-semibold hover:bg-secondary disabled:opacity-50">{image.isPrimary ? "Primary" : "Set primary"}</button>
                           <button disabled={index === 0 || imageAction} onClick={() => moveImage(image.id, -1)} className="h-8 rounded-lg border border-border px-2 text-xs font-semibold hover:bg-secondary disabled:opacity-50">Left</button>
@@ -611,21 +612,11 @@ export function AdminListingsPage({ onNavigate, onProductsChanged }: { onNavigat
 }
 
 function AdminProductImage({ product }: { product: AdminProduct }) {
-  const [imageSrc, setImageSrc] = useState(product.primaryImageUrl || product.images[0]?.url || fallbackProductImage(product));
-
-  useEffect(() => {
-    setImageSrc(product.primaryImageUrl || product.images[0]?.url || fallbackProductImage(product));
-  }, [product]);
-
   return (
-    <img
-      src={imageSrc}
-      alt={product.name}
+    <ProductImage
+      product={product}
+      src={product.primaryImageUrl || product.images[0]?.url}
       className="h-16 w-16 rounded-xl bg-secondary object-cover"
-      onError={() => {
-        const fallback = fallbackProductImage(product);
-        if (imageSrc !== fallback) setImageSrc(fallback);
-      }}
     />
   );
 }

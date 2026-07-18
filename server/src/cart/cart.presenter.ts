@@ -1,6 +1,7 @@
 import type { Cart, CartItem, Inventory, Product } from '@prisma/client';
 
 import { minorToAmount } from '../common/money.js';
+import { canonicalProductImagePath } from '../common/product-assets.js';
 
 type CartWithItems = Cart & {
   items: Array<CartItem & { product: Product & { inventory: Inventory | null } }>;
@@ -34,7 +35,7 @@ export function presentCart(cart: CartWithItems) {
         scent: item.product.scent ?? undefined,
         isEco: item.product.isEco,
         inStock: item.product.active && (item.product.inventory?.stockQuantity ?? 0) > 0,
-        image: item.product.image,
+        image: canonicalProductImagePath(item.product.image),
         badge: item.product.badge ?? undefined,
         sizes: item.product.sizes,
         tags: item.product.tags,

@@ -4,6 +4,7 @@ import { AlertCircle, BarChart3, Calendar, ClipboardList, PackageSearch, Shoppin
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api, ApiClientError, type AdminAnalytics, type AdminAnalyticsProduct } from "../../api";
 import { formatCurrency } from "../currency";
+import { ProductImage } from "../ProductImage";
 
 const presets = [
   { value: "today", label: "Today" },
@@ -298,7 +299,7 @@ function ProductTable({ products }: { products: AdminAnalyticsProduct[] }) {
 function ProductImage({ product }: { product: AdminAnalyticsProduct }) {
   return (
     <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-white p-1">
-      {product.image ? <img src={product.image} alt={product.productName} className="h-full w-full object-contain" /> : <PackageSearch size={18} className="text-muted-foreground" />}
+      {product.image ? <ProductImage product={{ name: product.productName, sku: product.sku }} src={product.image} className="h-full w-full object-contain" /> : <PackageSearch size={18} className="text-muted-foreground" />}
     </span>
   );
 }

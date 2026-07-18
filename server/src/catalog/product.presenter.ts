@@ -1,11 +1,13 @@
 import type { Product, Inventory } from '@prisma/client';
 
 import { minorToAmount } from '../common/money.js';
+import { canonicalProductImagePath } from '../common/product-assets.js';
 
 type ProductWithInventory = Product & { inventory: Inventory | null };
 
 function presentImageUrl(productId: string, image: string) {
-  return image.startsWith('/uploads/products/') ? `/api/products/${productId}/image` : image;
+  const canonicalImage = canonicalProductImagePath(image);
+  return canonicalImage.startsWith('/uploads/products/') ? `/api/products/${productId}/image` : canonicalImage;
 }
 
 export function presentProduct(product: ProductWithInventory) {

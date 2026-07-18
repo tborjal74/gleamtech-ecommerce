@@ -3,6 +3,7 @@ import { OrderStatus, PaymentStatus, Prisma, UserRole } from '@prisma/client';
 
 import { ApiError } from '../common/api-error.js';
 import { minorToAmount } from '../common/money.js';
+import { canonicalProductImagePath } from '../common/product-assets.js';
 import { PrismaService } from '../database/prisma.service.js';
 import type { AdminAnalyticsQueryDto, AnalyticsPreset } from './dto/admin-analytics-query.dto.js';
 
@@ -122,7 +123,7 @@ export class AdminAnalyticsService {
           productId: product.id,
           sku: product.sku,
           name: product.name,
-          image: product.image,
+          image: canonicalProductImagePath(product.image),
           currentStock: product.inventory?.stockQuantity ?? 0,
           active: product.active,
           isPublished: product.isPublished,
@@ -209,7 +210,7 @@ export class AdminAnalyticsService {
       currentStock: row.currentStock ?? 0,
       active: row.active ?? false,
       isPublished: row.isPublished ?? false,
-      image: row.image ?? '',
+      image: canonicalProductImagePath(row.image ?? ''),
     };
   }
 

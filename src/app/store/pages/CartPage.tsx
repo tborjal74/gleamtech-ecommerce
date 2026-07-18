@@ -5,6 +5,7 @@ import { cn } from "../../components/ui/utils";
 import type { CartItem, Product, Page } from "../types";
 import { formatCurrency } from "../currency";
 import type { PromoCode } from "../../api";
+import { ProductImage } from "../ProductImage";
 
 interface CartPageProps {
   cartItems: CartItem[];
@@ -90,7 +91,7 @@ export function CartPage({ cartItems, onUpdateQty, onRemove, onAddToCart, onView
                 onClick={() => onViewProduct(item.product)}
                 className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden bg-[var(--green-light)] shrink-0"
               >
-                <img src={item.product.image} alt={item.product.name} className="w-full h-full object-cover hover:scale-105 transition-transform" />
+                <ProductImage product={item.product} className="h-full w-full object-cover transition-transform hover:scale-105" />
               </button>
 
               {/* Details */}

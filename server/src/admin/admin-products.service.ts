@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 
 import { ApiError } from '../common/api-error.js';
+import { canonicalProductImagePath } from '../common/product-assets.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { ProductImageStorageService, type UploadedImageFile } from '../uploads/product-image-storage.service.js';
 import { AdminActivityService } from './admin-activity.service.js';
@@ -29,7 +30,8 @@ function slugify(value: string) {
 }
 
 function presentManagedImageUrl(productId: string, imageId: string, url: string) {
-  return url.startsWith('/uploads/products/') ? `/api/products/${productId}/images/${imageId}` : url;
+  const canonicalUrl = canonicalProductImagePath(url);
+  return canonicalUrl.startsWith('/uploads/products/') ? `/api/products/${productId}/images/${imageId}` : canonicalUrl;
 }
 
 function presentAdminProduct(product: AdminProduct) {
@@ -50,7 +52,7 @@ function presentAdminProduct(product: AdminProduct) {
     isEco: product.isEco,
     primaryImageUrl: (() => {
       const primary = product.images.find(image => image.url === product.image) ?? product.images.find(image => image.isPrimary);
-      return primary ? presentManagedImageUrl(product.id, primary.id, primary.url) : product.image;
+      return primary ? presentManagedImageUrl(product.id, primary.id, primary.url) : canonicalProductImagePath(product.image);
     })(),
     sizes: product.sizes,
     tags: product.tags,

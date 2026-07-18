@@ -25,16 +25,17 @@ SET
   END;
 
 UPDATE "Product"
-SET "image" = regexp_replace("image", '\.png$', '.webp')
-WHERE "image" IN (
-  'assets/blissbright.png', '/assets/blissbright.png',
-  'assets/gleamfresh.png', '/assets/gleamfresh.png',
-  'assets/gleamglow.png', '/assets/gleamglow.png',
-  'assets/gleamhush.png', '/assets/gleamhush.png',
-  'assets/gleamkiss.png', '/assets/gleamkiss.png',
-  'assets/gleamwhite.png', '/assets/gleamwhite.png',
-  'assets/puregleam-kalamansi.png', '/assets/puregleam-kalamansi.png',
-  'assets/puregleam-lemon.png', '/assets/puregleam-lemon.png',
-  'assets/ultrabright.png', '/assets/ultrabright.png',
-  'assets/whitelush.png', '/assets/whitelush.png'
-);
+SET "image" = CASE
+  WHEN "image" ~ '(^|/)assets/blissbright(-[A-Za-z0-9_-]+)?\.(png|webp)(\?.*)?$' THEN '/assets/blissbright.webp'
+  WHEN "image" ~ '(^|/)assets/gleamfresh(-[A-Za-z0-9_-]+)?\.(png|webp)(\?.*)?$' THEN '/assets/gleamfresh.webp'
+  WHEN "image" ~ '(^|/)assets/gleamglow(-[A-Za-z0-9_-]+)?\.(png|webp)(\?.*)?$' THEN '/assets/gleamglow.webp'
+  WHEN "image" ~ '(^|/)assets/gleamhush(-[A-Za-z0-9_-]+)?\.(png|webp)(\?.*)?$' THEN '/assets/gleamhush.webp'
+  WHEN "image" ~ '(^|/)assets/gleamkiss(-[A-Za-z0-9_-]+)?\.(png|webp)(\?.*)?$' THEN '/assets/gleamkiss.webp'
+  WHEN "image" ~ '(^|/)assets/gleamwhite(-[A-Za-z0-9_-]+)?\.(png|webp)(\?.*)?$' THEN '/assets/gleamwhite.webp'
+  WHEN "image" ~ '(^|/)assets/puregleam-kalamansi(-[A-Za-z0-9_-]+)?\.(png|webp)(\?.*)?$' THEN '/assets/puregleam-kalamansi.webp'
+  WHEN "image" ~ '(^|/)assets/puregleam-lemon(-[A-Za-z0-9_-]+)?\.(png|webp)(\?.*)?$' THEN '/assets/puregleam-lemon.webp'
+  WHEN "image" ~ '(^|/)assets/ultrabright(-[A-Za-z0-9_-]+)?\.(png|webp)(\?.*)?$' THEN '/assets/ultrabright.webp'
+  WHEN "image" ~ '(^|/)assets/whitelush(-[A-Za-z0-9_-]+)?\.(png|webp)(\?.*)?$' THEN '/assets/whitelush.webp'
+  ELSE "image"
+END
+WHERE "image" ~ '(^|/)assets/(blissbright|gleamfresh|gleamglow|gleamhush|gleamkiss|gleamwhite|puregleam-kalamansi|puregleam-lemon|ultrabright|whitelush)(-[A-Za-z0-9_-]+)?\.(png|webp)(\?.*)?$';

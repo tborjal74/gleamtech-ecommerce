@@ -4,6 +4,7 @@ import { cn } from "../components/ui/utils";
 import type { PublicUser } from "../api";
 import type { CartItem, Page, Product } from "./types";
 import { formatCurrency } from "./currency";
+import { ProductImage } from "./ProductImage";
 
 const logoUrl = new URL("../../../assets/gleamtech-main-logo.webp", import.meta.url).href;
 
@@ -54,7 +55,7 @@ function SearchResultsPanel({
               className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-secondary"
             >
               <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-white p-1">
-                <img src={product.image} alt={product.name} className="h-full w-full object-contain" />
+                <ProductImage product={product} className="h-full w-full object-contain" />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold text-foreground">{product.name}</span>
@@ -570,7 +571,7 @@ export function StoreHeader({ cartItems, onNavigate, onRemoveFromCart, onUpdateC
                 cartItems.map(item => (
                   <div key={`${item.product.id}-${item.size}`} className="flex gap-3">
                     <div className="w-18 h-18 rounded-xl overflow-hidden bg-secondary shrink-0" style={{ width: "72px", height: "72px" }}>
-                      <img src={item.product.image} alt={item.product.name} className="w-full h-full object-cover" />
+                      <ProductImage product={item.product} className="h-full w-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-foreground text-sm leading-snug">{item.product.name}</p>

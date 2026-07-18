@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Heart, ShoppingCart, Eye } from "lucide-react";
 import { cn } from "../components/ui/utils";
 import { RatingStars, Badge, QtySelector } from "./ui";
 import type { Product } from "./types";
 import { formatCurrency } from "./currency";
-import { fallbackProductImage } from "./productImages";
+import { ProductImage } from "./ProductImage";
 
 interface ProductCardProps {
   product: Product;
@@ -27,7 +27,6 @@ export function ProductCard({ product, onAddToCart, onView, isWishlisted, onTogg
   const [qty, setQty] = useState(1);
   const [selectedSize, setSelectedSize] = useState(product.sizes[0]);
   const [adding, setAdding] = useState(false);
-  const [imageSrc, setImageSrc] = useState(product.image || fallbackProductImage(product));
 
   const discount = product.originalPrice
     ? Math.round((1 - product.price / product.originalPrice) * 100)
@@ -38,10 +37,6 @@ export function ProductCard({ product, onAddToCart, onView, isWishlisted, onTogg
     onAddToCart(product, qty, selectedSize);
     setTimeout(() => setAdding(false), 800);
   };
-
-  useEffect(() => {
-    setImageSrc(product.image || fallbackProductImage(product));
-  }, [product]);
 
   return (
     <div className="group relative bg-card rounded-2xl border border-border overflow-hidden hover:shadow-md hover:border-[var(--green-mid)]/40 transition-all duration-200 flex flex-col">
@@ -59,15 +54,9 @@ export function ProductCard({ product, onAddToCart, onView, isWishlisted, onTogg
         className="relative overflow-hidden bg-[var(--green-light)] aspect-square text-left focus:outline-none focus:ring-2 focus:ring-[var(--green)]"
         aria-label={`View ${product.name}`}
       >
-        <img
-          src={imageSrc}
-          alt={product.name}
+        <ProductImage
+          product={product}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          loading="lazy"
-          onError={() => {
-            const fallback = fallbackProductImage(product);
-            if (imageSrc !== fallback) setImageSrc(fallback);
-          }}
         />
 
         {/* Badges */}

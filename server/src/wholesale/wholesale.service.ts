@@ -3,6 +3,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { WholesaleAccountStatus, WholesaleApplicationStatus, WholesaleOrderStatus } from '@prisma/client';
 import { ApiError } from '../common/api-error.js';
 import { minorToAmount } from '../common/money.js';
+import { canonicalProductImagePath } from '../common/product-assets.js';
 import { PrismaService } from '../database/prisma.service.js';
 import type { CreateCustomerWholesaleOrderDto, SubmitWholesaleApplicationDto } from './dto/customer-wholesale.dto.js';
 
@@ -27,7 +28,7 @@ export class WholesaleService {
       orders: orders.map(order => ({ ...order, subtotal: minorToAmount(order.subtotalMinor), discount: minorToAmount(order.discountMinor), total: minorToAmount(order.totalMinor), itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0) })),
       products: products.map(product => {
         const wholesalePriceMinor = Math.round(product.priceMinor * (100 - account.discountPercent) / 100);
-        return { id: product.id, sku: product.sku, name: product.name, image: product.image, retailPrice: minorToAmount(product.priceMinor), wholesalePrice: minorToAmount(wholesalePriceMinor), wholesalePriceMinor, availableQuantity: product.inventory?.stockQuantity ?? 0 };
+        return { id: product.id, sku: product.sku, name: product.name, image: canonicalProductImagePath(product.image), retailPrice: minorToAmount(product.priceMinor), wholesalePrice: minorToAmount(wholesalePriceMinor), wholesalePriceMinor, availableQuantity: product.inventory?.stockQuantity ?? 0 };
       }),
     };
   }

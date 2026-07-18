@@ -1,6 +1,6 @@
 import type { Product } from "./types";
 
-type ProductImageLike = Pick<Product, "name"> & {
+export type ProductImageLike = Pick<Product, "name"> & {
   sku?: string;
   image?: string;
 };
