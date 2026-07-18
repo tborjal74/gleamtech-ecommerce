@@ -101,6 +101,24 @@ export function AdminOrdersPage() {
     }
   };
 
+  const viewPaymentProof = async () => {
+    if (!selected?.paymentSubmission?.hasProof) return;
+    try {
+      const blob = await api.adminPaymentProof(selected.orderId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.target = "_blank";
+      link.rel = "noopener";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      toast.error(apiMessage(error));
+    }
+  };
+
   const reviewRequest = async (requestId: string, status: "approve" | "reject") => {
     if (!selected) return;
     const adminNote = window.prompt(status === "approve" ? "Optional approval note" : "Reason for rejection") ?? "";
@@ -226,7 +244,14 @@ export function AdminOrdersPage() {
                 <h3 className="font-bold text-foreground">Status</h3>
                 <p className="mt-2 text-sm">Payment: <span className="font-semibold">{selected.paymentStatus}</span></p>
                 <p className="text-sm">Fulfillment: <span className="font-semibold">{selected.orderStatus}</span></p>
-                {selected.paymentStatus !== "PAID" && (
+                {selected.paymentSubmission && (
+                  <div className="mt-3 rounded-xl bg-secondary/60 p-3 text-xs">
+                    <p><span className="text-muted-foreground">Method:</span> {selected.paymentSubmission.method.replace("_", " ")}</p>
+                    <p><span className="text-muted-foreground">Reference:</span> {selected.paymentSubmission.reference}</p>
+                    <button onClick={viewPaymentProof} className="mt-2 font-semibold text-[var(--green)] hover:underline">View payment proof</button>
+                  </div>
+                )}
+                {selected.paymentStatus === "SUBMITTED" && selected.paymentSubmission?.hasProof && (
                   <button
                     onClick={markAsPaid}
                     disabled={markingPaid}
@@ -234,6 +259,9 @@ export function AdminOrdersPage() {
                   >
                     {markingPaid ? "Marking paid..." : "Mark as Paid"}
                   </button>
+                )}
+                {!["SUBMITTED", "PAID"].includes(selected.paymentStatus) && (
+                  <p className="mt-3 rounded-xl bg-secondary px-3 py-2 text-xs text-muted-foreground">Waiting for the customer to submit a transaction reference and payment proof.</p>
                 )}
                 {selected.paymentStatus === "PAID" && (
                   <p className="mt-3 rounded-xl bg-[var(--green-light)] px-3 py-2 text-xs font-semibold text-[var(--green)]">
@@ -244,9 +272,10 @@ export function AdminOrdersPage() {
                   </p>
                 )}
                 {selected.paidConfirmationEmailLastError && (
-                  <p className="mt-2 rounded-xl bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    Email error: {selected.paidConfirmationEmailLastError}
-                  </p>
+                  <div className="mt-2 rounded-xl bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                    <p>Email error: {selected.paidConfirmationEmailLastError}</p>
+                    <button onClick={markAsPaid} disabled={markingPaid} className="mt-2 font-semibold underline disabled:opacity-50">Retry confirmation email</button>
+                  </div>
                 )}
                 {selected.allowedNextStatuses.length > 0 && (
                   <select disabled={updating} value="" onChange={event => event.target.value && updateStatus(event.target.value)} className="mt-3 h-10 w-full rounded-xl border border-border bg-card px-3 text-sm">
@@ -320,6 +349,7 @@ export function AdminOrdersPage() {
 
             <div className="mt-5 grid gap-2 rounded-xl border border-border p-4 text-sm sm:ml-auto sm:w-80">
               <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(selected.subtotal)}</span></div>
+              {selected.discount > 0 && <div className="flex justify-between text-[var(--green)]"><span>{selected.promoCode ? `${selected.promoCode} discount` : "Discount"}</span><span>-{formatCurrency(selected.discount)}</span></div>}
               <div className="flex justify-between"><span className="text-muted-foreground">Shipping</span><span>{formatCurrency(selected.shipping)}</span></div>
               <div className="flex justify-between border-t border-border pt-2 text-base font-bold"><span>Total</span><span>{formatCurrency(selected.total)}</span></div>
             </div>

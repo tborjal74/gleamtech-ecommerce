@@ -113,17 +113,24 @@ export interface AdminOrderSummary {
   itemCount: number;
   subtotalCents: number;
   shippingCents: number;
+  discountCents: number;
   totalCents: number;
   subtotal: number;
   shipping: number;
+  discount: number;
   total: number;
   paymentStatus: string;
   orderStatus: string;
+  paymentMethod: "GCASH" | "BANK_TRANSFER";
+  promoCode?: string | null;
+  promoPercentOff?: number | null;
   paidConfirmationEmailSentAt?: string | null;
   paidConfirmationEmailLastError?: string | null;
 }
 
 export interface AdminOrderDetail extends AdminOrderSummary {
+  paymentReference?: string | null;
+  paymentSubmission?: PaymentSubmissionSummary | null;
   shippingAddress: { name: string; phone: string; line1: string; line2: string; city: string; region: string; postal: string; country: string };
   customer: { id: string; firstName: string; lastName: string; email: string; role: string };
   customerNote: string;
@@ -224,6 +231,12 @@ export interface AdminPaymentQueueOrder {
   totalCents: number;
   paymentStatus: string;
   orderStatus: string;
+  paymentMethod: "GCASH" | "BANK_TRANSFER";
+  paymentReference: string | null;
+  paymentSubmittedAt: string | null;
+  paymentProofMimeType: string | null;
+  paymentProofSizeBytes: number | null;
+  hasPaymentProof: boolean;
 }
 
 export interface AdminCustomer {
@@ -300,12 +313,17 @@ export interface CustomerOrder {
   orderNumber: string;
   status: string;
   paymentStatus: string;
+  paymentMethod: "GCASH" | "BANK_TRANSFER";
   subtotal: number;
+  discount: number;
+  promoCode: string | null;
+  promoPercentOff: number | null;
   shipping: number;
   total: number;
   shippingAddress: { name: string; phone: string; line1: string; line2: string; city: string; region: string; postal: string; country: string };
   customerNote: string;
   createdAt: string;
+  paymentSubmission: PaymentSubmissionSummary | null;
   requests: Array<{ id: string; type: string; status: string; reason: string; adminNote: string; createdAt: string; reviewedAt: string | null }>;
   items: Array<{
     productId: string;
@@ -315,6 +333,15 @@ export interface CustomerOrder {
     quantity: number;
     lineTotal: number;
   }>;
+}
+
+export interface PaymentSubmissionSummary {
+  method: "GCASH" | "BANK_TRANSFER";
+  reference: string;
+  proofMimeType: string;
+  proofSizeBytes: number;
+  submittedAt: string;
+  hasProof: boolean;
 }
 
 export interface Pagination {
@@ -680,6 +707,8 @@ export const api = {
   },
   checkout(input: {
     idempotencyKey: string;
+    paymentMethod: "GCASH" | "BANK_TRANSFER";
+    promoCode?: string;
     shippingName: string;
     shippingPhone: string;
     shippingLine1: string;
@@ -690,9 +719,19 @@ export const api = {
     shippingCountry: string;
     customerNote?: string;
   }) {
-    return request<{ order: { id: string; orderNumber: string; total: number } }>("/api/orders/checkout", {
+    return request<{ order: { id: string; orderNumber: string; total: number; discount: number; promoCode: string | null } }>("/api/orders/checkout", {
       method: "POST",
       body: JSON.stringify(input),
+    });
+  },
+  submitPayment(orderId: string, input: { method: "GCASH" | "BANK_TRANSFER"; reference: string; proof: File }) {
+    const formData = new FormData();
+    formData.append("method", input.method);
+    formData.append("reference", input.reference);
+    formData.append("proof", input.proof);
+    return request<{ submission: PaymentSubmissionSummary }>(`/api/orders/${orderId}/payment-submission`, {
+      method: "POST",
+      body: formData,
     });
   },
   orders(query = "") {
@@ -975,6 +1014,9 @@ export const api = {
       },
     );
     return { ...response, order: normalizeAdminOrder(response.order) };
+  },
+  adminPaymentProof(orderId: string) {
+    return requestBlob(`/api/admin/orders/${orderId}/payment-proof`);
   },
   async adminReviewOrderRequest(orderId: string, requestId: string, status: "approve" | "reject", adminNote = "") {
     const response = await request<{ order: AdminOrderDetail }>(`/api/admin/orders/${orderId}/requests/${requestId}/${status}`, {

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import {
@@ -15,22 +15,55 @@ import { StoreHeader } from "./store/StoreHeader";
 import { StoreFooter } from "./store/StoreFooter";
 import { CookieConsent, type CookieConsentChoice } from "./store/CookieConsent";
 import { HomePage } from "./store/pages/HomePage";
-import { ListingPage } from "./store/pages/ListingPage";
-import { ProductPage } from "./store/pages/ProductPage";
-import { CartPage } from "./store/pages/CartPage";
-import { CheckoutPage } from "./store/pages/CheckoutPage";
-import { ProfilePage } from "./store/pages/ProfilePage";
-import { OrdersPage } from "./store/pages/OrdersPage";
-import { WishlistPage } from "./store/pages/WishlistPage";
-import { SupportPage } from "./store/pages/SupportPage";
-import { InfoPage, type InfoPageKind } from "./store/pages/InfoPage";
-import { AdminAnalyticsPage } from "./store/pages/AdminAnalyticsPage";
-import { AdminOperationsPage, type AdminOperationsSection } from "./store/pages/AdminOperationsPage";
-import { AdminListingsPage } from "./store/pages/AdminListingsPage";
-import { AdminOrdersPage } from "./store/pages/AdminOrdersPage";
-import { AdminWholesalePage } from "./store/pages/AdminWholesalePage";
-import { WholesalePage } from "./store/pages/WholesalePage";
+import type { InfoPageKind } from "./store/pages/InfoPage";
+import type { AdminOperationsSection } from "./store/pages/AdminOperationsPage";
 import type { CartItem, Page, Product } from "./store/types";
+
+const ListingPage = lazy(() =>
+  import("./store/pages/ListingPage").then(({ ListingPage }) => ({ default: ListingPage })),
+);
+const ProductPage = lazy(() =>
+  import("./store/pages/ProductPage").then(({ ProductPage }) => ({ default: ProductPage })),
+);
+const CartPage = lazy(() =>
+  import("./store/pages/CartPage").then(({ CartPage }) => ({ default: CartPage })),
+);
+const CheckoutPage = lazy(() =>
+  import("./store/pages/CheckoutPage").then(({ CheckoutPage }) => ({ default: CheckoutPage })),
+);
+const ProfilePage = lazy(() =>
+  import("./store/pages/ProfilePage").then(({ ProfilePage }) => ({ default: ProfilePage })),
+);
+const OrdersPage = lazy(() =>
+  import("./store/pages/OrdersPage").then(({ OrdersPage }) => ({ default: OrdersPage })),
+);
+const WishlistPage = lazy(() =>
+  import("./store/pages/WishlistPage").then(({ WishlistPage }) => ({ default: WishlistPage })),
+);
+const SupportPage = lazy(() =>
+  import("./store/pages/SupportPage").then(({ SupportPage }) => ({ default: SupportPage })),
+);
+const InfoPage = lazy(() =>
+  import("./store/pages/InfoPage").then(({ InfoPage }) => ({ default: InfoPage })),
+);
+const AdminAnalyticsPage = lazy(() =>
+  import("./store/pages/AdminAnalyticsPage").then(({ AdminAnalyticsPage }) => ({ default: AdminAnalyticsPage })),
+);
+const AdminOperationsPage = lazy(() =>
+  import("./store/pages/AdminOperationsPage").then(({ AdminOperationsPage }) => ({ default: AdminOperationsPage })),
+);
+const AdminListingsPage = lazy(() =>
+  import("./store/pages/AdminListingsPage").then(({ AdminListingsPage }) => ({ default: AdminListingsPage })),
+);
+const AdminOrdersPage = lazy(() =>
+  import("./store/pages/AdminOrdersPage").then(({ AdminOrdersPage }) => ({ default: AdminOrdersPage })),
+);
+const AdminWholesalePage = lazy(() =>
+  import("./store/pages/AdminWholesalePage").then(({ AdminWholesalePage }) => ({ default: AdminWholesalePage })),
+);
+const WholesalePage = lazy(() =>
+  import("./store/pages/WholesalePage").then(({ WholesalePage }) => ({ default: WholesalePage })),
+);
 
 const GOOGLE_GSI_SCRIPT_SRC = "https://accounts.google.com/gsi/client?hl=en";
 const AUTH_STORAGE_KEY = "gleamtech_auth";
@@ -118,6 +151,7 @@ export default function App() {
   const [storefrontReviews, setStorefrontReviews] = useState<StorefrontReview[]>([]);
   const [reviewSummary, setReviewSummary] = useState<ReviewSummary>({ average: 0, count: 0 });
   const [promos, setPromos] = useState<PromoCode[]>([]);
+  const [checkoutPromoCode, setCheckoutPromoCode] = useState<string | null>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [wishlist, setWishlist] = useState<Set<string>>(new Set());
@@ -431,6 +465,11 @@ export default function App() {
     [openAuthModal, user],
   );
 
+  const startCheckout = useCallback((promoCode: string | null) => {
+    setCheckoutPromoCode(promoCode);
+    navigate("checkout");
+  }, [navigate]);
+
   const submitAuth = useCallback(async () => {
     if (authSubmitting) return;
     if (twoFactorChallenge.token) {
@@ -536,22 +575,33 @@ export default function App() {
       />
 
       <div className="flex-1">
-        {page === "home" && (
-          <HomePage
-            onAddToCart={addToCart}
-            onViewProduct={viewProduct}
-            onNavigate={navigate}
-            wishlist={wishlist}
-            onToggleWishlist={toggleWishlist}
-            products={products}
-            productLoading={productLoading}
-            productError={productError}
-            onRefreshProducts={() => refreshProducts()}
-            content={homepageContent}
-            reviews={storefrontReviews}
-            reviewSummary={reviewSummary}
-          />
-        )}
+        <Suspense
+          fallback={(
+            <div
+              className="flex min-h-[50vh] items-center justify-center px-4 text-sm text-muted-foreground"
+              role="status"
+              aria-live="polite"
+            >
+              Loading page…
+            </div>
+          )}
+        >
+          {page === "home" && (
+            <HomePage
+              onAddToCart={addToCart}
+              onViewProduct={viewProduct}
+              onNavigate={navigate}
+              wishlist={wishlist}
+              onToggleWishlist={toggleWishlist}
+              products={products}
+              productLoading={productLoading}
+              productError={productError}
+              onRefreshProducts={() => refreshProducts()}
+              content={homepageContent}
+              reviews={storefrontReviews}
+              reviewSummary={reviewSummary}
+            />
+          )}
         {page === "listing" && (
           <ListingPage
             onAddToCart={addToCart}
@@ -590,11 +640,18 @@ export default function App() {
             onToggleWishlist={toggleWishlist}
             products={products}
             promos={promos}
+            onCheckout={startCheckout}
           />
         )}
         {page === "checkout" && (
           user ? (
-            <CheckoutPage cartItems={cartItems} onNavigate={navigate} onPlaceOrder={handlePlaceOrder} user={user} />
+            <CheckoutPage
+              cartItems={cartItems}
+              promo={checkoutPromoCode ? promos.find(promo => promo.code === checkoutPromoCode) ?? null : null}
+              onNavigate={navigate}
+              onPlaceOrder={handlePlaceOrder}
+              user={user}
+            />
           ) : (
             <CheckoutSignInRequired onNavigate={navigate} onSignIn={() => openAuthModal("login")} />
           )
@@ -661,16 +718,17 @@ export default function App() {
             <AccessDenied onNavigate={navigate} onSignIn={() => openAuthModal("login")} user={user} />
           )
         )}
-        {ADMIN_OPERATION_PAGES.includes(page as typeof ADMIN_OPERATION_PAGES[number]) && (
-          user?.role === "ADMIN" ? (
-            <AdminOperationsPage
-              section={ADMIN_OPERATION_SECTION_BY_PAGE[page as typeof ADMIN_OPERATION_PAGES[number]]}
-              onStoreContentChanged={refreshStoreContent}
-            />
-          ) : (
-            <AccessDenied onNavigate={navigate} onSignIn={() => openAuthModal("login")} user={user} />
-          )
-        )}
+          {ADMIN_OPERATION_PAGES.includes(page as typeof ADMIN_OPERATION_PAGES[number]) && (
+            user?.role === "ADMIN" ? (
+              <AdminOperationsPage
+                section={ADMIN_OPERATION_SECTION_BY_PAGE[page as typeof ADMIN_OPERATION_PAGES[number]]}
+                onStoreContentChanged={refreshStoreContent}
+              />
+            ) : (
+              <AccessDenied onNavigate={navigate} onSignIn={() => openAuthModal("login")} user={user} />
+            )
+          )}
+        </Suspense>
       </div>
 
       {page !== "checkout" && (

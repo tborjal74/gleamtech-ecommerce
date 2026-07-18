@@ -1,10 +1,19 @@
-import { IsIn, IsOptional, IsString, Length, MaxLength, MinLength } from 'class-validator';
+import { PaymentMethod } from '@prisma/client';
+import { IsEnum, IsIn, IsOptional, IsString, Length, MaxLength, MinLength } from 'class-validator';
 
 export class CheckoutDto {
   @IsString()
   @MinLength(8)
   @MaxLength(120)
   idempotencyKey!: string;
+
+  @IsEnum(PaymentMethod)
+  paymentMethod!: PaymentMethod;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  promoCode?: string;
 
   @IsString()
   @MinLength(1)

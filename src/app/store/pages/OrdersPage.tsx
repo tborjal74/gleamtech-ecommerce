@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { CheckCircle2, ChevronDown, Clock3, Download, Landmark, PackageCheck, QrCode, ReceiptText, ShoppingCart, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, Clock3, Download, Landmark, PackageCheck, Paperclip, QrCode, ReceiptText, ShoppingCart, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiClientError, type CustomerOrder } from "../../api";
 import { cn } from "../../components/ui/utils";
@@ -7,7 +7,7 @@ import { formatCurrency } from "../currency";
 import { BANK_TRANSFER_DETAILS, gcashQrUrl } from "../paymentDetails";
 import type { Page } from "../types";
 
-type PaymentMethod = "qr" | "bank";
+type PaymentMethod = "GCASH" | "BANK_TRANSFER";
 
 function apiMessage(error: unknown) {
   return error instanceof ApiClientError
@@ -28,7 +28,7 @@ function labelStatus(status: string) {
 export function OrdersPage({ onNavigate }: { onNavigate: (page: Page) => void }) {
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("qr");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("GCASH");
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [pageCount, setPageCount] = useState(1);
@@ -42,6 +42,7 @@ export function OrdersPage({ onNavigate }: { onNavigate: (page: Page) => void })
         setOrders(result.orders);
         setPageCount(Math.max(result.pagination.pageCount, 1));
         setSelectedOrderId(current => current || result.orders[0]?.id || "");
+        if (!selectedOrderId && result.orders[0]) setPaymentMethod(result.orders[0].paymentMethod);
       })
       .catch(error => toast.error(apiMessage(error)))
       .finally(() => setLoading(false));
@@ -83,6 +84,7 @@ export function OrdersPage({ onNavigate }: { onNavigate: (page: Page) => void })
                     type="button"
                     onClick={() => {
                       setSelectedOrderId(order.id);
+                      setPaymentMethod(order.paymentMethod);
                       setPaymentOpen(false);
                     }}
                     className={cn(
@@ -167,7 +169,7 @@ function OrderDetail({
   const [requestDialog, setRequestDialog] = useState<"cancel" | "return" | null>(null);
   const [requestReason, setRequestReason] = useState("");
   const [requestSubmitting, setRequestSubmitting] = useState(false);
-  const canPay = order.paymentStatus !== "PAID" && order.status !== "CANCELLED";
+  const canPay = !["PAID", "REFUNDED"].includes(order.paymentStatus) && order.status !== "CANCELLED";
   const canCancel = ["PENDING_PAYMENT", "PAID"].includes(order.status);
   const canReturnRefund = order.paymentStatus === "PAID" && ["SHIPPED", "COMPLETED"].includes(order.status);
   const canReceipt = order.paymentStatus === "PAID";
@@ -345,6 +347,16 @@ function OrderDetail({
             </div>
           ))}
         </div>
+        <div className="grid gap-2 border-t border-border bg-secondary/30 px-4 py-3 text-sm">
+          <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(order.subtotal)}</span></div>
+          {order.discount > 0 && (
+            <div className="flex justify-between text-[var(--green)]">
+              <span>{order.promoCode ? `${order.promoCode} discount` : "Discount"}</span>
+              <span>-{formatCurrency(order.discount)}</span>
+            </div>
+          )}
+          <div className="flex justify-between font-bold"><span>Total</span><span>{formatCurrency(order.total)}</span></div>
+        </div>
       </div>
 
       <div className="mt-6 rounded-2xl border border-border bg-secondary/40 p-4">
@@ -364,6 +376,7 @@ function OrderDetail({
           onPaymentMethodChange={onPaymentMethodChange}
           open={paymentOpen}
           onOpenChange={onPaymentOpenChange}
+          onChanged={onChanged}
         />
       ) : (
         <ClosedPaymentNotice order={order} />
@@ -466,13 +479,51 @@ function PaymentPanel({
   onPaymentMethodChange,
   open,
   onOpenChange,
+  onChanged,
 }: {
   order: CustomerOrder;
   paymentMethod: PaymentMethod;
   onPaymentMethodChange: (method: PaymentMethod) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onChanged: () => void;
 }) {
+  const [reference, setReference] = useState(order.paymentSubmission?.reference ?? "");
+  const [proof, setProof] = useState<File | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const submitted = order.paymentStatus === "SUBMITTED";
+
+  useEffect(() => {
+    setReference(order.paymentSubmission?.reference ?? "");
+    setProof(null);
+  }, [order.id, order.paymentSubmission?.reference]);
+
+  const submitPayment = async () => {
+    if (reference.trim().length < 6) {
+      toast.error("Enter the transaction reference from your payment confirmation.");
+      return;
+    }
+    if (!proof) {
+      toast.error("Upload a screenshot or photo of your payment confirmation.");
+      return;
+    }
+    if (proof.size > 5 * 1024 * 1024) {
+      toast.error("Payment proof must be 5 MB or smaller.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await api.submitPayment(order.id, { method: paymentMethod, reference: reference.trim(), proof });
+      toast.success("Payment submitted for verification");
+      setProof(null);
+      onChanged();
+    } catch (error) {
+      toast.error(apiMessage(error));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="mt-6 rounded-2xl border border-[var(--green-mid)] bg-[var(--green-light)]/50 p-4">
       <button
@@ -484,9 +535,11 @@ function PaymentPanel({
         <div className="flex items-start gap-3">
           <Clock3 size={20} className="mt-0.5 text-[var(--green)]" />
           <div>
-            <p className="font-semibold text-foreground">Pending payment</p>
+            <p className="font-semibold text-foreground">{submitted ? "Payment submitted" : "Pending payment"}</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Pay {formatCurrency(order.total)} using QR or bank transfer, then keep your reference number. Save or screenshot your payment confirmation for transaction verification.
+              {submitted
+                ? "Your proof is waiting for administrator verification. You can replace it below if you submitted the wrong details."
+                : `Pay ${formatCurrency(order.total)} using GCash or bank transfer, then submit the reference and proof below.`}
             </p>
           </div>
         </div>
@@ -501,10 +554,10 @@ function PaymentPanel({
           <div className="mt-4 grid grid-cols-2 rounded-xl border border-border bg-card p-1">
             <button
               type="button"
-              onClick={() => onPaymentMethodChange("qr")}
+              onClick={() => onPaymentMethodChange("GCASH")}
               className={cn(
                 "flex h-10 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors",
-                paymentMethod === "qr" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                paymentMethod === "GCASH" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
               <QrCode size={15} />
@@ -512,10 +565,10 @@ function PaymentPanel({
             </button>
             <button
               type="button"
-              onClick={() => onPaymentMethodChange("bank")}
+              onClick={() => onPaymentMethodChange("BANK_TRANSFER")}
               className={cn(
                 "flex h-10 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors",
-                paymentMethod === "bank" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                paymentMethod === "BANK_TRANSFER" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
               <Landmark size={15} />
@@ -523,7 +576,7 @@ function PaymentPanel({
             </button>
           </div>
 
-          {paymentMethod === "qr" ? (
+          {paymentMethod === "GCASH" ? (
             <div className="mt-4 flex justify-center rounded-2xl border border-border bg-white p-4">
               <img src={gcashQrUrl} alt="GCash QR payment code" className="h-64 w-64 max-w-full object-contain" />
             </div>
@@ -535,6 +588,45 @@ function PaymentPanel({
               <PaymentRow label="Account Name" value={BANK_TRANSFER_DETAILS.accountName} />
             </div>
           )}
+          {order.paymentSubmission && (
+            <div className="mt-4 rounded-xl border border-border bg-card p-3 text-sm">
+              <p className="font-semibold text-foreground">Current submission</p>
+              <p className="mt-1 text-muted-foreground">Reference: {order.paymentSubmission.reference}</p>
+              <p className="text-muted-foreground">Submitted: {new Date(order.paymentSubmission.submittedAt).toLocaleString()}</p>
+            </div>
+          )}
+          <div className="mt-4 grid gap-3 rounded-xl border border-border bg-card p-4">
+            <label className="text-sm font-medium text-foreground">
+              Transaction reference
+              <input
+                value={reference}
+                onChange={event => setReference(event.target.value.slice(0, 120))}
+                placeholder="Enter the GCash or bank reference"
+                className="mt-1 h-11 w-full rounded-xl border border-border bg-input-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/30"
+              />
+            </label>
+            <label className="text-sm font-medium text-foreground">
+              Payment proof
+              <span className="mt-1 flex min-h-11 items-center gap-2 rounded-xl border border-dashed border-border px-3 text-sm text-muted-foreground">
+                <Paperclip size={15} />
+                <span>{proof?.name ?? "JPEG, PNG, or WebP up to 5 MB"}</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={event => setProof(event.target.files?.[0] ?? null)}
+                  className="sr-only"
+                />
+              </span>
+            </label>
+            <button
+              type="button"
+              onClick={submitPayment}
+              disabled={submitting}
+              className="h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+            >
+              {submitting ? "Submitting..." : submitted ? "Replace submission" : "Submit for verification"}
+            </button>
+          </div>
         </>
       )}
     </div>

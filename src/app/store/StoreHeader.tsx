@@ -5,7 +5,7 @@ import type { PublicUser } from "../api";
 import type { CartItem, Page, Product } from "./types";
 import { formatCurrency } from "./currency";
 
-const logoUrl = new URL("../../../assets/gleamtech-main-logo.png", import.meta.url).href;
+const logoUrl = new URL("../../../assets/gleamtech-main-logo.webp", import.meta.url).href;
 
 interface StoreHeaderProps {
   cartItems: CartItem[];

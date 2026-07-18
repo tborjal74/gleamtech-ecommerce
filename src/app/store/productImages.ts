@@ -8,16 +8,16 @@ type ProductImageLike = Pick<Product, "name"> & {
 const asset = (filename: string) => new URL(`../../../assets/${filename}`, import.meta.url).href;
 
 const fallbackImages = [
-  { match: ["BLISSBRIGHT"], image: "blissbright.png" },
-  { match: ["GLEAMFRESH"], image: "gleamfresh.png" },
-  { match: ["GLEAMGLOW"], image: "gleamglow.png" },
-  { match: ["GLEAMHUSH", "HANDSOAP", "HAND-SOAP"], image: "gleamhush.png" },
-  { match: ["GLEAMKISS"], image: "gleamkiss.png" },
-  { match: ["GLEAMWHITE"], image: "gleamwhite.png" },
-  { match: ["KALAMANSI"], image: "puregleam-kalamansi.png" },
-  { match: ["PUREGLEAM", "LEMON", "DISHWASHING-LEMON"], image: "puregleam-lemon.png" },
-  { match: ["ULTRABRIGHT", "COLOR-BLEACH", "COLOR SAFE BLEACH"], image: "ultrabright.png" },
-  { match: ["WHITELUSH", "ACTIVE-BLEACH"], image: "whitelush.png" },
+  { match: ["BLISSBRIGHT"], image: "blissbright.webp" },
+  { match: ["GLEAMFRESH"], image: "gleamfresh.webp" },
+  { match: ["GLEAMGLOW"], image: "gleamglow.webp" },
+  { match: ["GLEAMHUSH", "HANDSOAP", "HAND-SOAP"], image: "gleamhush.webp" },
+  { match: ["GLEAMKISS"], image: "gleamkiss.webp" },
+  { match: ["GLEAMWHITE"], image: "gleamwhite.webp" },
+  { match: ["KALAMANSI"], image: "puregleam-kalamansi.webp" },
+  { match: ["PUREGLEAM", "LEMON", "DISHWASHING-LEMON"], image: "puregleam-lemon.webp" },
+  { match: ["ULTRABRIGHT", "COLOR-BLEACH", "COLOR SAFE BLEACH"], image: "ultrabright.webp" },
+  { match: ["WHITELUSH", "ACTIVE-BLEACH"], image: "whitelush.webp" },
 ];
 
 export function assetProductImage(product: ProductImageLike): string | undefined {
@@ -27,5 +27,5 @@ export function assetProductImage(product: ProductImageLike): string | undefined
 }
 
 export function fallbackProductImage(product: ProductImageLike): string {
-  return assetProductImage(product) ?? asset("gleamfresh.png");
+  return assetProductImage(product) ?? asset("gleamfresh.webp");
 }

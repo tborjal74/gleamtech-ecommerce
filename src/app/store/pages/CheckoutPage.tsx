@@ -4,15 +4,18 @@ import { cn } from "../../components/ui/utils";
 import { InputField } from "../ui";
 import type { CartItem, Page } from "../types";
 import { formatCurrency } from "../currency";
-import { api, type CustomerAddress, type PublicUser } from "../../api";
-import { gcashQrUrl } from "../paymentDetails";
+import { api, type CustomerAddress, type PromoCode, type PublicUser } from "../../api";
+import { BANK_TRANSFER_DETAILS, gcashQrUrl } from "../paymentDetails";
 
 interface CheckoutPageProps {
   cartItems: CartItem[];
+  promo: PromoCode | null;
   onNavigate: (page: Page) => void;
   user: PublicUser;
   onPlaceOrder: (input: {
     idempotencyKey: string;
+    paymentMethod: "GCASH" | "BANK_TRANSFER";
+    promoCode?: string;
     shippingName: string;
     shippingPhone: string;
     shippingLine1: string;
@@ -39,13 +42,6 @@ type CheckoutForm = {
 };
 
 const STEPS = ["Contact", "Shipping", "Payment"];
-
-// Edit these bank details when you are ready to publish your transfer account.
-const BANK_TRANSFER_DETAILS = {
-  bankName: "BPI",
-  accountNumber: "1109-0054-89",
-  accountName: "Johanna Sararaña Vea",
-};
 
 const EMPTY_FORM: CheckoutForm = {
   firstName: "",
@@ -77,9 +73,9 @@ function validatePhone(phone: string) {
   return /^\+?[0-9\s()-]{7,20}$/.test(phone.trim());
 }
 
-export function CheckoutPage({ cartItems, onNavigate, onPlaceOrder, user }: CheckoutPageProps) {
+export function CheckoutPage({ cartItems, promo, onNavigate, onPlaceOrder, user }: CheckoutPageProps) {
   const [step, setStep] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState<"gcash" | "bank">("gcash");
+  const [paymentMethod, setPaymentMethod] = useState<"GCASH" | "BANK_TRANSFER">("GCASH");
   const [showGcashQr, setShowGcashQr] = useState(false);
   const [form, setForm] = useState<CheckoutForm>(() => formFromUser(user));
   const [errors, setErrors] = useState<Partial<Record<keyof CheckoutForm | "payment", string>>>({});
@@ -92,7 +88,8 @@ export function CheckoutPage({ cartItems, onNavigate, onPlaceOrder, user }: Chec
   const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.product.price * item.qty, 0);
-  const total = subtotal;
+  const discount = promo ? Math.round(subtotal * promo.percentOff) / 100 : 0;
+  const total = subtotal - discount;
   const stockWarnings = cartItems.filter(item => !item.product.inStock || (item.product.availableQuantity ?? item.qty) < item.qty);
 
   useEffect(() => {
@@ -172,6 +169,8 @@ export function CheckoutPage({ cartItems, onNavigate, onPlaceOrder, user }: Chec
     try {
       const result = await onPlaceOrder({
         idempotencyKey,
+        paymentMethod,
+        ...(promo ? { promoCode: promo.code } : {}),
         shippingName: `${form.firstName.trim()} ${form.lastName.trim()}`.trim(),
         shippingPhone: form.phone.trim(),
         shippingLine1: form.addressLine1.trim(),
@@ -214,7 +213,7 @@ export function CheckoutPage({ cartItems, onNavigate, onPlaceOrder, user }: Chec
         <h1 className="text-3xl font-bold text-foreground mb-2">Order Confirmed</h1>
         <p className="text-muted-foreground mb-1">Thank you for your purchase.</p>
         <p className="text-muted-foreground text-sm mb-8">
-          Your order <strong>#{orderNumber}</strong> has been created. Please complete payment using your selected method.
+          Your order <strong>#{orderNumber}</strong> has been created. Complete the transfer, then submit its reference and proof from My Orders.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <button
@@ -391,11 +390,11 @@ export function CheckoutPage({ cartItems, onNavigate, onPlaceOrder, user }: Chec
               <div className="grid gap-3 sm:grid-cols-2 mb-6">
                 <button
                   onClick={() => {
-                    setPaymentMethod("gcash");
+                    setPaymentMethod("GCASH");
                   }}
                   className={cn(
                     "min-h-24 rounded-2xl border p-4 text-left transition-all",
-                    paymentMethod === "gcash" ? "border-[var(--green)] bg-[var(--green-light)]" : "border-border hover:border-[var(--green-mid)]",
+                    paymentMethod === "GCASH" ? "border-[var(--green)] bg-[var(--green-light)]" : "border-border hover:border-[var(--green-mid)]",
                   )}
                 >
                   <QrCode size={20} className="mb-3 text-[var(--green)]" />
@@ -404,12 +403,12 @@ export function CheckoutPage({ cartItems, onNavigate, onPlaceOrder, user }: Chec
                 </button>
                 <button
                   onClick={() => {
-                    setPaymentMethod("bank");
+                    setPaymentMethod("BANK_TRANSFER");
                     setShowGcashQr(false);
                   }}
                   className={cn(
                     "min-h-24 rounded-2xl border p-4 text-left transition-all",
-                    paymentMethod === "bank" ? "border-[var(--green)] bg-[var(--green-light)]" : "border-border hover:border-[var(--green-mid)]",
+                    paymentMethod === "BANK_TRANSFER" ? "border-[var(--green)] bg-[var(--green-light)]" : "border-border hover:border-[var(--green-mid)]",
                   )}
                 >
                   <Landmark size={20} className="mb-3 text-[var(--green)]" />
@@ -418,7 +417,7 @@ export function CheckoutPage({ cartItems, onNavigate, onPlaceOrder, user }: Chec
                 </button>
               </div>
 
-              {paymentMethod === "gcash" && (
+              {paymentMethod === "GCASH" && (
                 <div className="rounded-2xl border border-border bg-secondary/60 p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-muted-foreground">
@@ -446,7 +445,7 @@ export function CheckoutPage({ cartItems, onNavigate, onPlaceOrder, user }: Chec
                 </div>
               )}
 
-              {paymentMethod === "bank" && (
+              {paymentMethod === "BANK_TRANSFER" && (
                 <div className="rounded-2xl border border-border bg-muted p-4 text-sm text-muted-foreground select-none">
                   <p className="mb-3 font-semibold text-foreground">Bank transfer details</p>
                   <div className="grid gap-2">
@@ -529,6 +528,12 @@ export function CheckoutPage({ cartItems, onNavigate, onPlaceOrder, user }: Chec
                 <span className="text-muted-foreground">Subtotal</span>
                 <span>{formatCurrency(subtotal)}</span>
               </div>
+              {promo && (
+                <div className="flex justify-between text-[var(--green)]">
+                  <span>{promo.code} ({promo.percentOff}% off)</span>
+                  <span>-{formatCurrency(discount)}</span>
+                </div>
+              )}
               <div className="flex justify-between font-bold text-base border-t border-border pt-2 mt-1">
                 <span>Total</span>
                 <span>{formatCurrency(total)}</span>

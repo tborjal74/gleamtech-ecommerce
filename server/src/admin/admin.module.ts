@@ -4,6 +4,7 @@ import { AuthenticationModule } from '../authentication/authentication.module.js
 import { DatabaseModule } from '../database/database.module.js';
 import { EmailModule } from '../email/email.module.js';
 import { UploadsModule } from '../uploads/uploads.module.js';
+import { PaymentsModule } from '../payments/payments.module.js';
 import { AdminActivityService } from './admin-activity.service.js';
 import { AdminAnalyticsController } from './admin-analytics.controller.js';
 import { AdminAnalyticsService } from './admin-analytics.service.js';
@@ -17,7 +18,7 @@ import { AdminWholesaleController } from './admin-wholesale.controller.js';
 import { AdminWholesaleService } from './admin-wholesale.service.js';
 
 @Module({
-  imports: [AuthenticationModule, DatabaseModule, EmailModule, UploadsModule],
+  imports: [AuthenticationModule, DatabaseModule, EmailModule, UploadsModule, PaymentsModule],
   controllers: [AdminProductsController, AdminOrdersController, AdminAnalyticsController, AdminOperationsController, AdminWholesaleController],
   providers: [AdminProductsService, AdminOrdersService, AdminAnalyticsService, AdminOperationsService, AdminActivityService, AdminWholesaleService],
 })

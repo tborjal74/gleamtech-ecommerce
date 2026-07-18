@@ -158,6 +158,7 @@ export class AdminOperationsService {
   async paymentQueue(query: AdminPageQueryDto) {
     const where: Prisma.OrderWhereInput = {
       paymentStatus: { in: [PaymentStatus.PENDING, PaymentStatus.SUBMITTED] },
+      status: { not: OrderStatus.CANCELLED },
     };
     if (query.search?.trim()) {
       const search = query.search.trim();
@@ -172,7 +173,19 @@ export class AdminOperationsService {
       this.prisma.order.count({ where }),
       this.prisma.order.findMany({
         where,
-        include: { user: true, items: true },
+        include: {
+          user: true,
+          items: true,
+          paymentSubmission: {
+            select: {
+              method: true,
+              reference: true,
+              proofMimeType: true,
+              proofSizeBytes: true,
+              submittedAt: true,
+            },
+          },
+        },
         orderBy: { createdAt: 'asc' },
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
@@ -191,7 +204,13 @@ export class AdminOperationsService {
         total: minorToAmount(order.totalMinor),
         totalCents: order.totalMinor,
         paymentStatus: order.paymentStatus,
+        paymentMethod: order.paymentMethod,
         orderStatus: order.status,
+        paymentReference: order.paymentSubmission?.reference ?? null,
+        paymentSubmittedAt: order.paymentSubmission?.submittedAt.toISOString() ?? null,
+        paymentProofMimeType: order.paymentSubmission?.proofMimeType ?? null,
+        paymentProofSizeBytes: order.paymentSubmission?.proofSizeBytes ?? null,
+        hasPaymentProof: Boolean(order.paymentSubmission),
       })),
       pagination: this.pagination(query, total),
     };

@@ -29,12 +29,12 @@ const DEFAULT_HOME_CONTENT = {
   subheadline: "Powerful cleaning products for every room, backed by secure checkout and fast Gleamtech delivery.",
   primaryCta: "Shop Now",
   secondaryCta: "View Bundles",
-  heroImage: heroAsset("hero-image-1.png"),
-  subHeroImageLeft: heroAsset("sub-hero-image-2.png"),
-  subHeroImageRight: heroAsset("sub-hero-image-3.png"),
+  heroImage: heroAsset("hero-image-1.webp"),
+  subHeroImageLeft: heroAsset("sub-hero-image-2.webp"),
+  subHeroImageRight: heroAsset("sub-hero-image-3.webp"),
   promoLabel: "Limited Time",
-  promoHeadline: "Bundle & Save up to 30%",
-  promoText: "Mix and match any 3 products and get 30% off.",
+  promoHeadline: "Save with verified promo codes",
+  promoText: "Apply an eligible promo code in your cart. Your discount is verified again when the order is placed.",
   promiseOneTitle: "Powerful Clean, Naturally",
   promiseOneText: "Plant-powered formulas that tackle grease, grime, and everyday messes without harsh chemicals",
   promiseTwoTitle: "Satisfaction Guaranteed",
@@ -247,15 +247,15 @@ export function HomePage({ onAddToCart, onViewProduct, onNavigate, wishlist, onT
                 {home.promoText}
               </p>
               <ul className="mt-4 space-y-1 text-sm text-cyan-100">
-                <li>✓ Choose any 3 products from our range</li>
-                <li>✓ Automatic discount at checkout</li>
+                <li>✓ Enter an eligible code in your cart</li>
+                <li>✓ Discount is verified securely at checkout</li>
                 <li>✓ Delivery instructions sent after payment confirmation</li>
               </ul>
             </div>
             <div className="shrink-0 text-center">
               <div className="text-white/80 text-sm mb-1">Save up to</div>
-              <div className="text-7xl font-black text-white">30%</div>
-              <div className="text-white/80 text-sm">on bundle orders</div>
+              <div className="text-5xl font-black text-white">SAVE</div>
+              <div className="text-white/80 text-sm">with active offers</div>
               <button
                 onClick={() => onNavigate("listing")}
                 className="mt-5 flex items-center gap-2 px-7 py-3.5 rounded-xl font-semibold text-[var(--green)] bg-white hover:bg-cyan-50 transition-colors mx-auto"

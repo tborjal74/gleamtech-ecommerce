@@ -1,8 +1,12 @@
-import type { Order, OrderItem, OrderRequest } from '@prisma/client';
+import type { Order, OrderItem, OrderRequest, PaymentSubmission } from '@prisma/client';
 
 import { minorToAmount } from '../common/money.js';
 
-type OrderWithItems = Order & { items: OrderItem[]; requests?: OrderRequest[] };
+type OrderWithItems = Order & {
+  items: OrderItem[];
+  requests?: OrderRequest[];
+  paymentSubmission?: Pick<PaymentSubmission, 'method' | 'reference' | 'proofMimeType' | 'proofSizeBytes' | 'submittedAt'> | null;
+};
 
 export function presentOrder(order: OrderWithItems) {
   return {
@@ -10,7 +14,11 @@ export function presentOrder(order: OrderWithItems) {
     orderNumber: order.orderNumber,
     status: order.status,
     paymentStatus: order.paymentStatus,
+    paymentMethod: order.paymentMethod,
     subtotal: minorToAmount(order.subtotalMinor),
+    discount: minorToAmount(order.discountMinor),
+    promoCode: order.promoCode,
+    promoPercentOff: order.promoPercentOff,
     shipping: minorToAmount(order.shippingMinor),
     total: minorToAmount(order.totalMinor),
     shippingAddress: {
@@ -25,6 +33,16 @@ export function presentOrder(order: OrderWithItems) {
     },
     customerNote: order.customerNote ?? '',
     createdAt: order.createdAt.toISOString(),
+    paymentSubmission: order.paymentSubmission
+      ? {
+          method: order.paymentSubmission.method,
+          reference: order.paymentSubmission.reference,
+          proofMimeType: order.paymentSubmission.proofMimeType,
+          proofSizeBytes: order.paymentSubmission.proofSizeBytes,
+          submittedAt: order.paymentSubmission.submittedAt.toISOString(),
+          hasProof: true,
+        }
+      : null,
     requests: order.requests?.map(request => ({
       id: request.id,
       type: request.type,

@@ -2,7 +2,7 @@ import React from "react";
 import { Facebook, Instagram, Mail, MapPin, Phone, Youtube } from "lucide-react";
 import type { Page } from "./types";
 
-const logoUrl = new URL("../../../assets/gleamtech-main-logo.png", import.meta.url).href;
+const logoUrl = new URL("../../../assets/gleamtech-main-logo.webp", import.meta.url).href;
 
 const FOOTER_LINKS = {
   Shop: ["Kitchen", "Bathroom", "Laundry", "Floors", "Disinfectants", "Eco-Friendly", "Bundles & Kits"],

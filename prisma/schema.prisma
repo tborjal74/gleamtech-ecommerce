@@ -30,6 +30,11 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum PaymentMethod {
+  GCASH
+  BANK_TRANSFER
+}
+
 enum WholesaleAccountStatus {
   ACTIVE
   ON_HOLD
@@ -394,12 +399,12 @@ model HomepageContent {
   subheadline       String   @default("Powerful cleaning products for every room, backed by secure checkout and fast Gleamtech delivery.")
   primaryCta        String   @default("Shop Now")
   secondaryCta      String   @default("View Bundles")
-  heroImage         String   @default("/assets/hero-image-1.png")
-  subHeroImageLeft  String   @default("/assets/sub-hero-image-2.png")
-  subHeroImageRight String   @default("/assets/sub-hero-image-3.png")
+  heroImage         String   @default("/assets/hero-image-1.webp")
+  subHeroImageLeft  String   @default("/assets/sub-hero-image-2.webp")
+  subHeroImageRight String   @default("/assets/sub-hero-image-3.webp")
   promoLabel        String   @default("Limited Time")
-  promoHeadline     String   @default("Bundle & Save up to 30%")
-  promoText         String   @default("Mix and match any 3 products and get 30% off.")
+  promoHeadline     String   @default("Save with verified promo codes")
+  promoText         String   @default("Apply an eligible promo code in your cart. Your discount is verified again when the order is placed.")
   promiseOneTitle   String   @default("Powerful Clean, Naturally")
   promiseOneText    String   @default("Plant-powered formulas that tackle grease, grime, and everyday messes without harsh chemicals")
   promiseTwoTitle   String   @default("Satisfaction Guaranteed")
@@ -449,7 +454,11 @@ model Order {
   idempotencyKey                 String
   status                         OrderStatus          @default(PENDING_PAYMENT)
   paymentStatus                  PaymentStatus        @default(PENDING)
+  paymentMethod                  PaymentMethod        @default(GCASH)
   subtotalMinor                  Int
+  discountMinor                  Int                  @default(0)
+  promoCode                      String?
+  promoPercentOff                Int?
   shippingMinor                  Int
   totalMinor                     Int
   shippingName                   String
@@ -471,6 +480,7 @@ model Order {
   statusHistory                  OrderStatusHistory[]
   requests                       OrderRequest[]
   reviews                        ProductReview[]
+  paymentSubmission              PaymentSubmission?
 
   @@unique([userId, idempotencyKey])
   @@index([userId])
@@ -478,6 +488,22 @@ model Order {
   @@index([paymentStatus])
   @@index([paidAt])
   @@index([createdAt])
+}
+
+model PaymentSubmission {
+  id                String        @id @default(cuid())
+  orderId           String        @unique
+  method            PaymentMethod
+  reference         String
+  proof             Bytes
+  proofMimeType     String
+  proofSizeBytes    Int
+  proofOriginalName String
+  submittedAt       DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([submittedAt])
 }
 
 model OrderRequest {

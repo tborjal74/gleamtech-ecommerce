@@ -167,12 +167,30 @@ function PaymentsPanel() {
     }
   };
 
+  const viewPaymentProof = async () => {
+    if (!orderToMarkPaid?.hasPaymentProof) return;
+    try {
+      const blob = await api.adminPaymentProof(orderToMarkPaid.orderId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.target = "_blank";
+      link.rel = "noopener";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      toast.error(apiMessage(error));
+    }
+  };
+
   return (
     <>
       <SearchBar search={search} setSearch={value => { setSearch(value); setPage(1); }} />
       <TableShell loading={loading} empty={!orders.length} emptyText="No pending payments found.">
         {orders.map(order => (
-          <div key={order.orderId} className="grid gap-3 px-4 py-3 lg:grid-cols-[1fr_1fr_120px_130px_120px] lg:items-center">
+          <div key={order.orderId} className="grid gap-3 px-4 py-3 lg:grid-cols-[1fr_1fr_120px_170px_120px] lg:items-center">
             <div>
               <p className="font-semibold text-foreground">{order.orderNumber}</p>
               <p className="text-xs text-muted-foreground">{new Date(order.createdAt).toLocaleString()}</p>
@@ -182,8 +200,17 @@ function PaymentsPanel() {
               <p className="text-xs text-muted-foreground">{order.customerEmail}</p>
             </div>
             <p className="font-semibold">{formatCurrency(order.total)}</p>
-            <p className="text-sm text-muted-foreground">{order.paymentStatus}</p>
-            <button onClick={() => setOrderToMarkPaid(order)} className="h-9 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground transition-all duration-150 hover:scale-[1.02] hover:bg-[var(--green-dark)] active:scale-[0.98]">Mark Paid</button>
+            <div className="text-sm text-muted-foreground">
+              <p>{order.paymentStatus} · {order.paymentMethod.replace("_", " ")}</p>
+              <p className="truncate text-xs">{order.paymentReference ?? "Awaiting customer proof"}</p>
+            </div>
+            <button
+              onClick={() => setOrderToMarkPaid(order)}
+              disabled={order.paymentStatus !== "SUBMITTED" || !order.hasPaymentProof || !order.paymentReference}
+              className="h-9 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground transition-all duration-150 hover:scale-[1.02] hover:bg-[var(--green-dark)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Review
+            </button>
           </div>
         ))}
       </TableShell>
@@ -193,6 +220,7 @@ function PaymentsPanel() {
         submitting={submitting}
         onClose={() => setOrderToMarkPaid(null)}
         onConfirm={markPaid}
+        onViewProof={viewPaymentProof}
       />
     </>
   );
@@ -289,11 +317,13 @@ function ConfirmPaymentDialog({
   submitting,
   onClose,
   onConfirm,
+  onViewProof,
 }: {
   order: AdminPaymentQueueOrder | null;
   submitting: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  onViewProof: () => void;
 }) {
   if (!order) return null;
   return (
@@ -320,11 +350,23 @@ function ConfirmPaymentDialog({
             <span className="text-muted-foreground">Amount</span>
             <span className="font-bold text-foreground">{formatCurrency(order.total)}</span>
           </div>
+          <div className="mt-2 grid gap-1 border-t border-border pt-2 text-sm">
+            <p><span className="text-muted-foreground">Method:</span> {order.paymentMethod.replace("_", " ")}</p>
+            <p><span className="text-muted-foreground">Reference:</span> {order.paymentReference}</p>
+            <p><span className="text-muted-foreground">Submitted:</span> {order.paymentSubmittedAt ? new Date(order.paymentSubmittedAt).toLocaleString() : "—"}</p>
+          </div>
         </div>
         <p className="mt-3 text-sm text-muted-foreground">
           Confirm this only after checking the customer payment proof, transfer amount, and transaction reference.
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <button
+            onClick={onViewProof}
+            disabled={submitting || !order.hasPaymentProof}
+            className="h-11 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-secondary disabled:opacity-50"
+          >
+            View payment proof
+          </button>
           <button
             onClick={onClose}
             disabled={submitting}
@@ -419,7 +461,7 @@ function StockEditorDialog({
             +
           </button>
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <button
             onClick={onClose}
             disabled={saving}

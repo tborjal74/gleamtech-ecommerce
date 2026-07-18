@@ -6,6 +6,7 @@ import { minorToAmount } from '../common/money.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { EmailService } from '../email/email.service.js';
 import { AdminActivityService } from './admin-activity.service.js';
+import { PaymentsService } from '../payments/payments.service.js';
 import type { AdminOrderListQueryDto } from './dto/admin-order-list-query.dto.js';
 import { allowedOrderStatusTransitions, assertOrderStatusTransition } from './order-status-transitions.js';
 
@@ -16,6 +17,16 @@ type AdminOrderDetail = Prisma.OrderGetPayload<{
     items: { include: { product: { select: { image: true } } } };
     requests: true;
     statusHistory: { include: { changedBy: true }; orderBy: { createdAt: 'desc' } };
+    paymentSubmission: {
+      select: {
+        method: true;
+        reference: true;
+        proofMimeType: true;
+        proofSizeBytes: true;
+        proofOriginalName: true;
+        submittedAt: true;
+      };
+    };
   };
 }>;
 
@@ -34,6 +45,11 @@ function presentOrderSummary(order: AdminOrderSummary) {
     shipping: minorToAmount(order.shippingMinor),
     total: minorToAmount(order.totalMinor),
     paymentStatus: order.paymentStatus,
+    paymentMethod: order.paymentMethod,
+    discountCents: order.discountMinor,
+    discount: minorToAmount(order.discountMinor),
+    promoCode: order.promoCode,
+    promoPercentOff: order.promoPercentOff,
     orderStatus: order.status,
     paidConfirmationEmailSentAt: order.paidConfirmationEmailSentAt?.toISOString() ?? null,
     paidConfirmationEmailLastError: order.paidConfirmationEmailLastError,
@@ -43,7 +59,18 @@ function presentOrderSummary(order: AdminOrderSummary) {
 function presentOrderDetail(order: AdminOrderDetail) {
   return {
     ...presentOrderSummary(order),
-    paymentReference: null,
+    paymentReference: order.paymentSubmission?.reference ?? null,
+    paymentSubmission: order.paymentSubmission
+      ? {
+          method: order.paymentSubmission.method,
+          reference: order.paymentSubmission.reference,
+          proofMimeType: order.paymentSubmission.proofMimeType,
+          proofSizeBytes: order.paymentSubmission.proofSizeBytes,
+          proofOriginalName: order.paymentSubmission.proofOriginalName,
+          submittedAt: order.paymentSubmission.submittedAt.toISOString(),
+          hasProof: true,
+        }
+      : null,
     shippingAddress: {
       name: order.shippingName,
       phone: order.shippingPhone,
@@ -106,6 +133,7 @@ export class AdminOrdersService {
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
     private readonly activity: AdminActivityService,
+    private readonly paymentsService: PaymentsService,
   ) {}
 
   async list(query: AdminOrderListQueryDto) {
@@ -163,12 +191,31 @@ export class AdminOrdersService {
     return { order: presentOrderDetail(await this.findOrder(orderId)) };
   }
 
+  paymentProof(orderId: string) {
+    return this.paymentsService.proofForAdmin(orderId);
+  }
+
   async updateStatus(adminId: string, orderId: string, nextStatus: OrderStatus) {
     const order = await this.findOrder(orderId);
     assertOrderStatusTransition(order.status, nextStatus);
 
     const updated = await this.prisma.$transaction(async tx => {
-      await tx.order.update({ where: { id: orderId }, data: { status: nextStatus } });
+      const claimed = await tx.order.updateMany({
+        where: { id: orderId, status: order.status },
+        data: { status: nextStatus },
+      });
+      if (claimed.count !== 1) {
+        throw new ApiError(HttpStatus.CONFLICT, 'ORDER_STATE_CHANGED', 'Order state changed. Refresh and try again.');
+      }
+      if (nextStatus === OrderStatus.CANCELLED) {
+        for (const item of order.items) {
+          await tx.inventory.upsert({
+            where: { productId: item.productId },
+            update: { stockQuantity: { increment: item.quantity } },
+            create: { productId: item.productId, stockQuantity: item.quantity },
+          });
+        }
+      }
       await tx.orderStatusHistory.create({
         data: {
           orderId,
@@ -200,33 +247,42 @@ export class AdminOrdersService {
     }
 
     const order = await this.findOrder(orderId);
-    const updated = await this.prisma.$transaction(async tx => {
-      const nextOrderStatus = order.status === OrderStatus.PENDING_PAYMENT ? OrderStatus.PAID : order.status;
-      const paidAt = order.paidAt ?? new Date();
-      await tx.order.update({
-        where: { id: orderId },
-        data: {
-          paymentStatus: PaymentStatus.PAID,
-          status: nextOrderStatus,
-          paidAt,
-          paidConfirmationEmailLastError: null,
-        },
-      });
-      if (nextOrderStatus !== order.status) {
-        await tx.orderStatusHistory.create({
-          data: {
-            orderId,
-            changedById: adminId,
-            previousStatus: order.status,
-            newStatus: nextOrderStatus,
-          },
+    const retryConfirmationEmail = order.paymentStatus === PaymentStatus.PAID && !order.paidConfirmationEmailSentAt;
+    if (!retryConfirmationEmail && (order.status === OrderStatus.CANCELLED || order.paymentStatus !== PaymentStatus.SUBMITTED || !order.paymentSubmission)) {
+      throw new ApiError(HttpStatus.CONFLICT, 'PAYMENT_VERIFICATION_REQUIRED', 'A submitted reference and payment proof are required before marking this order paid.');
+    }
+    const updated = retryConfirmationEmail
+      ? order
+      : await this.prisma.$transaction(async tx => {
+          const nextOrderStatus = order.status === OrderStatus.PENDING_PAYMENT ? OrderStatus.PAID : order.status;
+          const paidAt = order.paidAt ?? new Date();
+          const claimed = await tx.order.updateMany({
+            where: { id: orderId, paymentStatus: PaymentStatus.SUBMITTED, status: { not: OrderStatus.CANCELLED } },
+            data: {
+              paymentStatus: PaymentStatus.PAID,
+              status: nextOrderStatus,
+              paidAt,
+              paidConfirmationEmailLastError: null,
+            },
+          });
+          if (claimed.count !== 1) {
+            throw new ApiError(HttpStatus.CONFLICT, 'ORDER_STATE_CHANGED', 'Order payment state changed. Refresh and try again.');
+          }
+          if (nextOrderStatus !== order.status) {
+            await tx.orderStatusHistory.create({
+              data: {
+                orderId,
+                changedById: adminId,
+                previousStatus: order.status,
+                newStatus: nextOrderStatus,
+              },
+            });
+          }
+          return tx.order.findUniqueOrThrow({
+            where: { id: orderId },
+            include: this.detailInclude(),
+          });
         });
-      }
-      return tx.order.findUniqueOrThrow({
-        where: { id: orderId },
-        include: this.detailInclude(),
-      });
-    });
 
     if (!updated.paidConfirmationEmailSentAt) {
       try {
@@ -286,11 +342,21 @@ export class AdminOrdersService {
     }
 
     await this.prisma.$transaction(async tx => {
-      await tx.orderRequest.update({
-        where: { id: requestId },
+      const claimedRequest = await tx.orderRequest.updateMany({
+        where: { id: requestId, orderId, status: OrderRequestStatus.PENDING },
         data: { status, adminNote: adminNote?.trim() || null, reviewedById: adminId, reviewedAt: new Date() },
       });
+      if (claimedRequest.count !== 1) {
+        throw new ApiError(HttpStatus.CONFLICT, 'ORDER_REQUEST_NOT_ALLOWED', 'This order request was already reviewed.');
+      }
       if (status === OrderRequestStatus.APPROVED && request.type === OrderRequestType.CANCELLATION) {
+        const claimedOrder = await tx.order.updateMany({
+          where: { id: orderId, status: { in: [OrderStatus.PENDING_PAYMENT, OrderStatus.PAID] } },
+          data: { status: OrderStatus.CANCELLED },
+        });
+        if (claimedOrder.count !== 1) {
+          throw new ApiError(HttpStatus.CONFLICT, 'ORDER_CANCELLATION_NOT_ALLOWED', 'This order is already being processed or cancelled.');
+        }
         for (const item of request.order.items) {
           await tx.inventory.upsert({
             where: { productId: item.productId },
@@ -298,7 +364,6 @@ export class AdminOrdersService {
             create: { productId: item.productId, stockQuantity: item.quantity },
           });
         }
-        await tx.order.update({ where: { id: orderId }, data: { status: OrderStatus.CANCELLED } });
       }
       if (status === OrderRequestStatus.APPROVED && request.type === OrderRequestType.RETURN_REFUND) {
         await tx.order.update({ where: { id: orderId }, data: { paymentStatus: PaymentStatus.REFUNDED } });
@@ -333,6 +398,16 @@ export class AdminOrdersService {
       items: { include: { product: { select: { image: true } } } },
       requests: { orderBy: { createdAt: 'desc' as const } },
       statusHistory: { include: { changedBy: true }, orderBy: { createdAt: 'desc' as const } },
+      paymentSubmission: {
+        select: {
+          method: true,
+          reference: true,
+          proofMimeType: true,
+          proofSizeBytes: true,
+          proofOriginalName: true,
+          submittedAt: true,
+        },
+      },
     };
   }
 }

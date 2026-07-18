@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { OrderRequestStatus, UserRole } from '@prisma/client';
 
 import type { AuthenticatedRequest } from '../authentication/auth.types.js';
@@ -27,6 +28,16 @@ export class AdminOrdersController {
   @Get(':orderId')
   get(@Param('orderId') orderId: string) {
     return this.ordersService.get(orderId);
+  }
+
+  @Get(':orderId/payment-proof')
+  async paymentProof(@Param('orderId') orderId: string, @Res() response: Response) {
+    const proof = await this.ordersService.paymentProof(orderId);
+    response
+      .setHeader('Content-Type', proof.proofMimeType)
+      .setHeader('Cache-Control', 'private, no-store')
+      .setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(proof.proofOriginalName)}"`)
+      .send(proof.proof);
   }
 
   @Patch(':orderId/status')

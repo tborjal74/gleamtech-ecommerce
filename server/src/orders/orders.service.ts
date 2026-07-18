@@ -9,12 +9,28 @@ import { PaymentsService } from '../payments/payments.service.js';
 import type { CheckoutDto } from './dto/checkout.dto.js';
 import type { CustomerOrderListQueryDto } from './dto/customer-order-list-query.dto.js';
 import { presentOrder } from './order.presenter.js';
+import { calculateDiscountMinor } from './checkout-pricing.js';
+import type { PaymentSubmissionDto } from '../payments/dto/payment-submission.dto.js';
+import type { PaymentProofFile } from '../payments/payment-proof.util.js';
 
 type OrderNumberRow = { nextValue: number };
 
 const CHECKOUT_MAX_ATTEMPTS = 3;
 const ORDER_SEQUENCE_KEY = 'GT';
 const ORDER_RANDOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const customerOrderInclude = {
+  items: true,
+  requests: true,
+  paymentSubmission: {
+    select: {
+      method: true,
+      reference: true,
+      proofMimeType: true,
+      proofSizeBytes: true,
+      submittedAt: true,
+    },
+  },
+} as const;
 
 @Injectable()
 export class OrdersService {
@@ -27,7 +43,7 @@ export class OrdersService {
   async checkout(userId: string, dto: CheckoutDto) {
     const existing = await this.prisma.order.findUnique({
       where: { userId_idempotencyKey: { userId, idempotencyKey: dto.idempotencyKey } },
-      include: { items: true, requests: true },
+      include: customerOrderInclude,
     });
     if (existing) {
       return { order: presentOrder(existing), payment: this.paymentsService.pendingPayment(existing) };
@@ -71,6 +87,25 @@ export class OrdersService {
             subtotalMinor += item.product.priceMinor * item.quantity;
           }
 
+          const promoCode = dto.promoCode?.trim().toUpperCase() || null;
+          const now = new Date();
+          const promo = promoCode
+            ? await tx.promoCode.findFirst({
+                where: {
+                  code: promoCode,
+                  active: true,
+                  AND: [
+                    { OR: [{ startsAt: null }, { startsAt: { lte: now } }] },
+                    { OR: [{ endsAt: null }, { endsAt: { gte: now } }] },
+                  ],
+                },
+              })
+            : null;
+          if (promoCode && !promo) {
+            throw new ApiError(HttpStatus.CONFLICT, 'PROMO_INVALID', 'Promo code is invalid or expired.');
+          }
+          const discountMinor = promo ? calculateDiscountMinor(subtotalMinor, promo.percentOff) : 0;
+
           for (const item of cart.items) {
             await this.inventoryService.decrementOrThrow(
               tx,
@@ -81,13 +116,17 @@ export class OrdersService {
           }
 
           const shippingMinor = 0;
-          const totalMinor = subtotalMinor;
+          const totalMinor = subtotalMinor - discountMinor;
           const created = await tx.order.create({
             data: {
               userId,
               orderNumber: await this.nextOrderNumber(tx),
               idempotencyKey: dto.idempotencyKey,
+              paymentMethod: dto.paymentMethod,
               subtotalMinor,
+              discountMinor,
+              promoCode: promo?.code ?? null,
+              promoPercentOff: promo?.percentOff ?? null,
               shippingMinor,
               totalMinor,
               shippingName: dto.shippingName.trim(),
@@ -110,7 +149,7 @@ export class OrdersService {
                 })),
               },
             },
-            include: { items: true, requests: true },
+            include: customerOrderInclude,
           });
 
           await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
@@ -124,7 +163,7 @@ export class OrdersService {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
           const duplicate = await this.prisma.order.findUnique({
             where: { userId_idempotencyKey: { userId, idempotencyKey: dto.idempotencyKey } },
-            include: { items: true, requests: true },
+            include: customerOrderInclude,
           });
           if (duplicate) {
             return {
@@ -143,12 +182,16 @@ export class OrdersService {
     throw new ApiError(HttpStatus.CONFLICT, 'CHECKOUT_RETRY_EXHAUSTED', 'Checkout could not be completed. Please try again.');
   }
 
+  submitPayment(userId: string, orderId: string, dto: PaymentSubmissionDto, file?: PaymentProofFile) {
+    return this.paymentsService.submit(userId, orderId, dto, file);
+  }
+
   async listOrders(userId: string, query: CustomerOrderListQueryDto) {
     const [total, orders] = await this.prisma.$transaction([
       this.prisma.order.count({ where: { userId } }),
       this.prisma.order.findMany({
         where: { userId },
-        include: { items: true, requests: true },
+        include: customerOrderInclude,
         orderBy: { createdAt: 'desc' },
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
@@ -169,7 +212,7 @@ export class OrdersService {
   async getOrder(userId: string, orderId: string) {
     const order = await this.prisma.order.findFirst({
       where: { id: orderId, userId },
-      include: { items: true, requests: true },
+      include: customerOrderInclude,
     });
 
     if (!order) {
@@ -180,18 +223,24 @@ export class OrdersService {
   }
 
   async cancelOrder(userId: string, orderId: string) {
-    const order = await this.prisma.order.findFirst({
-      where: { id: orderId, userId },
-      include: { items: true, requests: true },
-    });
-    if (!order) {
-      throw new ApiError(HttpStatus.NOT_FOUND, 'ORDER_NOT_FOUND', 'Order was not found.');
-    }
-    if (order.status !== OrderStatus.PENDING_PAYMENT && order.status !== OrderStatus.PAID) {
-      throw new ApiError(HttpStatus.CONFLICT, 'ORDER_CANCELLATION_NOT_ALLOWED', 'This order is already being processed and can no longer be cancelled.');
-    }
-
     const cancelled = await this.prisma.$transaction(async tx => {
+      const claimed = await tx.order.updateMany({
+        where: {
+          id: orderId,
+          userId,
+          status: { in: [OrderStatus.PENDING_PAYMENT, OrderStatus.PAID] },
+        },
+        data: { status: OrderStatus.CANCELLED },
+      });
+      if (claimed.count !== 1) {
+        const exists = await tx.order.findFirst({ where: { id: orderId, userId }, select: { id: true } });
+        if (!exists) throw new ApiError(HttpStatus.NOT_FOUND, 'ORDER_NOT_FOUND', 'Order was not found.');
+        throw new ApiError(HttpStatus.CONFLICT, 'ORDER_CANCELLATION_NOT_ALLOWED', 'This order is already being processed or cancelled.');
+      }
+      const order = await tx.order.findUniqueOrThrow({
+        where: { id: orderId },
+        include: customerOrderInclude,
+      });
       for (const item of order.items) {
         await tx.inventory.upsert({
           where: { productId: item.productId },
@@ -199,11 +248,7 @@ export class OrdersService {
           create: { productId: item.productId, stockQuantity: item.quantity },
         });
       }
-      return tx.order.update({
-        where: { id: orderId },
-        data: { status: OrderStatus.CANCELLED },
-        include: { items: true, requests: true },
-      });
+      return order;
     });
 
     return { order: presentOrder(cancelled) };
@@ -212,7 +257,7 @@ export class OrdersService {
   async reorder(userId: string, orderId: string) {
     const order = await this.prisma.order.findFirst({
       where: { id: orderId, userId },
-      include: { items: true, requests: true },
+      include: customerOrderInclude,
     });
     if (!order) {
       throw new ApiError(HttpStatus.NOT_FOUND, 'ORDER_NOT_FOUND', 'Order was not found.');
@@ -254,7 +299,7 @@ export class OrdersService {
   async receipt(userId: string, orderId: string) {
     const order = await this.prisma.order.findFirst({
       where: { id: orderId, userId },
-      include: { items: true, requests: true },
+      include: customerOrderInclude,
     });
     if (!order) {
       throw new ApiError(HttpStatus.NOT_FOUND, 'ORDER_NOT_FOUND', 'Order was not found.');
@@ -292,7 +337,7 @@ export class OrdersService {
   private async findUserOrder(userId: string, orderId: string) {
     const order = await this.prisma.order.findFirst({
       where: { id: orderId, userId },
-      include: { items: true, requests: true },
+      include: customerOrderInclude,
     });
     if (!order) {
       throw new ApiError(HttpStatus.NOT_FOUND, 'ORDER_NOT_FOUND', 'Order was not found.');
@@ -352,6 +397,7 @@ function makeSimpleInvoicePdf(order: Prisma.OrderGetPayload<{ include: { items: 
     ...order.items.map(item => `${item.productName} x ${item.quantity} - PHP ${minorToDisplay(item.lineTotalMinor)}`),
     '',
     `Subtotal: PHP ${minorToDisplay(order.subtotalMinor)}`,
+    `Discount: PHP ${minorToDisplay(order.discountMinor)}`,
     `Shipping: PHP ${minorToDisplay(order.shippingMinor)}`,
     `Total Paid: PHP ${minorToDisplay(order.totalMinor)}`,
   ];

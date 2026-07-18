@@ -17,9 +17,10 @@ interface CartPageProps {
   onToggleWishlist: (id: string) => void;
   products: Product[];
   promos: PromoCode[];
+  onCheckout: (promoCode: string | null) => void;
 }
 
-export function CartPage({ cartItems, onUpdateQty, onRemove, onAddToCart, onViewProduct, onNavigate, wishlist, onToggleWishlist, products, promos }: CartPageProps) {
+export function CartPage({ cartItems, onUpdateQty, onRemove, onAddToCart, onViewProduct, onNavigate, wishlist, onToggleWishlist, products, promos, onCheckout }: CartPageProps) {
   const [promoCode, setPromoCode] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
   const [promoError, setPromoError] = useState("");
@@ -222,7 +223,7 @@ export function CartPage({ cartItems, onUpdateQty, onRemove, onAddToCart, onView
             </div>
 
             <button
-              onClick={() => onNavigate("checkout")}
+              onClick={() => onCheckout(appliedPromo)}
               disabled={stockWarnings.length > 0}
               className="w-full h-13 rounded-2xl bg-primary text-primary-foreground font-bold text-base flex items-center justify-center gap-2 hover:bg-[var(--green-dark)] active:scale-[0.98] transition-all disabled:cursor-not-allowed disabled:opacity-50"
               style={{ height: "52px" }}
@@ -231,7 +232,7 @@ export function CartPage({ cartItems, onUpdateQty, onRemove, onAddToCart, onView
             </button>
 
             <div className="flex items-center justify-center gap-2 mt-4">
-              {["VISA", "MC", "AMEX", "PP", "GPay"].map(p => (
+              {["GCash", "Bank transfer"].map(p => (
                 <div key={p} className="px-2 py-1 rounded bg-secondary text-[9px] font-bold text-muted-foreground border border-border">
                   {p}
                 </div>
