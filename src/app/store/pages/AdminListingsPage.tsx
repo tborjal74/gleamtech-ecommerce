@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Edit3, ImagePlus, PackagePlus, RefreshCw, Search, Trash2, X } from "lucide-react";
+import { Download, Edit3, ImagePlus, PackagePlus, RefreshCw, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiClientError, type AdminProduct, type AdminProductInput } from "../../api";
 import { formatCurrency } from "../currency";
@@ -98,6 +98,20 @@ function toInput(form: ListingForm): AdminProductInput {
   };
 }
 
+function downloadFilename(product: AdminProduct, mimeType?: string) {
+  const baseName = product.name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || product.sku.toLowerCase();
+  const extension = mimeType === "image/jpeg"
+    ? "jpg"
+    : mimeType === "image/webp"
+      ? "webp"
+      : "png";
+  return `${baseName}.${extension}`;
+}
+
 export function AdminListingsPage({ onNavigate, onProductsChanged }: { onNavigate: (page: Page) => void; onProductsChanged: () => Promise<void> }) {
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [search, setSearch] = useState("");
@@ -116,6 +130,7 @@ export function AdminListingsPage({ onNavigate, onProductsChanged }: { onNavigat
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState("");
   const [imageAction, setImageAction] = useState(false);
+  const [downloadingProductId, setDownloadingProductId] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState<AdminProduct | null>(null);
 
   const query = useMemo(() => {
@@ -243,6 +258,36 @@ export function AdminListingsPage({ onNavigate, onProductsChanged }: { onNavigat
     }
   };
 
+  const downloadListingImage = async (product: AdminProduct) => {
+    const image = product.images.find(candidate => candidate.isPrimary) ?? product.images[0];
+    const imageUrl = image?.url || product.primaryImageUrl;
+    if (!imageUrl) {
+      toast.error("This listing does not have an image to download.");
+      return;
+    }
+
+    setDownloadingProductId(product.id);
+    try {
+      // Download the original response bytes instead of a rendered thumbnail.
+      const response = await fetch(imageUrl, { credentials: "same-origin" });
+      if (!response.ok) throw new Error(`Image request failed with status ${response.status}.`);
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = downloadFilename(product, image?.mimeType || blob.type);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error("Failed to download listing image", { productId: product.id, imageUrl, error });
+      toast.error("The listing image could not be downloaded. Check that the image upload is still available.");
+    } finally {
+      setDownloadingProductId(null);
+    }
+  };
+
   const refreshEditingProduct = async (productId: string) => {
     const result = await api.adminProduct(productId);
     setEditing(result.product);
@@ -363,7 +408,7 @@ export function AdminListingsPage({ onNavigate, onProductsChanged }: { onNavigat
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-border bg-card">
-        <div className="hidden grid-cols-[72px_minmax(320px,1.5fr)_130px_110px_110px_210px] gap-4 border-b border-border px-4 py-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground lg:grid">
+        <div className="hidden grid-cols-[72px_minmax(320px,1.5fr)_130px_110px_110px_320px] gap-4 border-b border-border px-4 py-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground lg:grid">
           <span>Image</span><span>Product</span><span>Price</span><span>Stock</span><span>Status</span><span>Actions</span>
         </div>
         {loading ? (
@@ -373,7 +418,7 @@ export function AdminListingsPage({ onNavigate, onProductsChanged }: { onNavigat
         ) : (
           <div className="divide-y divide-border">
             {products.map(product => (
-              <article key={product.id} className="grid gap-4 px-4 py-4 lg:grid-cols-[72px_minmax(320px,1.5fr)_130px_110px_110px_210px] lg:items-center">
+              <article key={product.id} className="grid gap-4 px-4 py-4 lg:grid-cols-[72px_minmax(320px,1.5fr)_130px_110px_110px_320px] lg:items-center">
                 <AdminProductImage product={product} />
                 <div>
                   <h2 className="font-semibold text-foreground">{product.name}</h2>
@@ -388,6 +433,14 @@ export function AdminListingsPage({ onNavigate, onProductsChanged }: { onNavigat
                 </div>
                 <div className="flex min-w-0 gap-2">
                   <button onClick={() => openEdit(product)} className="inline-flex h-9 items-center gap-2 rounded-xl border border-border px-3 text-sm font-semibold hover:bg-secondary"><Edit3 size={14} />Edit</button>
+                  <button
+                    onClick={() => void downloadListingImage(product)}
+                    disabled={downloadingProductId === product.id || (!product.primaryImageUrl && product.images.length === 0)}
+                    title="Download original listing image"
+                    className="inline-flex h-9 items-center gap-2 rounded-xl border border-border px-3 text-sm font-semibold hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Download size={14} />{downloadingProductId === product.id ? "Downloading..." : "Download"}
+                  </button>
                   <button onClick={() => setConfirmingDelete(product)} className="inline-flex h-9 items-center gap-2 rounded-xl border border-border px-3 text-sm font-semibold text-destructive hover:bg-secondary"><Trash2 size={14} />Delete</button>
                 </div>
               </article>

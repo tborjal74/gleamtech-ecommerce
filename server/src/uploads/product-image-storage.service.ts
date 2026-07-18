@@ -46,17 +46,48 @@ export class ProductImageStorageService {
     this.maxBytes = this.config.get<number>('PRODUCT_IMAGE_MAX_BYTES', 5 * 1024 * 1024);
     this.uploadRoot = this.config.get<string>('UPLOAD_DIR', join(process.cwd(), 'uploads'));
     this.publicBaseUrl = this.config.get<string>('UPLOAD_PUBLIC_BASE_URL', '/uploads');
-    const cloudinaryUrl = this.config.get<string>('CLOUDINARY_URL')?.trim();
+    const cloudinaryUrl = this.normalizeCloudinaryUrl(this.config.get<string>('CLOUDINARY_URL'));
     this.cloudinaryEnabled = Boolean(cloudinaryUrl);
     if (cloudinaryUrl) {
-      const credentials = new URL(cloudinaryUrl.replace(/^cloudinary:\/\//, 'https://'));
-      cloudinary.config({
-        cloud_name: credentials.hostname,
-        api_key: decodeURIComponent(credentials.username),
-        api_secret: decodeURIComponent(credentials.password),
-        secure: true,
-      });
+      let credentials: URL;
+      try {
+        credentials = new URL(cloudinaryUrl.replace(/^cloudinary:\/\//i, 'https://'));
+      } catch {
+        throw new Error('Invalid CLOUDINARY_URL. Use cloudinary://API_KEY:API_SECRET@CLOUD_NAME from the Cloudinary console.');
+      }
+
+      // The Cloudinary SDK validates process.env.CLOUDINARY_URL before applying
+      // explicit credentials. Temporarily hide it so copied formatting cannot
+      // trigger the SDK's less-specific protocol error.
+      const rawEnvironmentUrl = process.env.CLOUDINARY_URL;
+      delete process.env.CLOUDINARY_URL;
+      try {
+        cloudinary.config({
+          cloud_name: credentials.hostname,
+          api_key: decodeURIComponent(credentials.username),
+          api_secret: decodeURIComponent(credentials.password),
+          secure: true,
+        });
+      } finally {
+        if (rawEnvironmentUrl === undefined) delete process.env.CLOUDINARY_URL;
+        else process.env.CLOUDINARY_URL = rawEnvironmentUrl;
+      }
     }
+  }
+
+  private normalizeCloudinaryUrl(value?: string): string | undefined {
+    if (!value) return undefined;
+
+    let normalized = value.trim();
+    if ((normalized.startsWith('"') && normalized.endsWith('"')) || (normalized.startsWith("'") && normalized.endsWith("'"))) {
+      normalized = normalized.slice(1, -1).trim();
+    }
+    normalized = normalized.replace(/^CLOUDINARY_URL\s*=\s*/i, '').trim();
+    if (!normalized) return undefined;
+    if (!/^cloudinary:\/\//i.test(normalized)) {
+      throw new Error('Invalid CLOUDINARY_URL. Render must contain only cloudinary://API_KEY:API_SECRET@CLOUD_NAME (without quotes or CLOUDINARY_URL=).');
+    }
+    return `cloudinary://${normalized.slice('cloudinary://'.length)}`;
   }
 
   async store(file: UploadedImageFile): Promise<StoredProductImage> {
