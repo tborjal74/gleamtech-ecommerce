@@ -2,6 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { OrderStatus, PaymentStatus, Prisma } from '@prisma/client';
 
 import { ApiError } from '../common/api-error.js';
+import { canonicalizeHomepageImages } from '../common/homepage-assets.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { ProductImageStorageService, type ServedProductImage } from '../uploads/product-image-storage.service.js';
 import type { CreateProductReviewDto } from './dto/create-product-review.dto.js';
@@ -50,7 +51,7 @@ export class CatalogService {
     ]);
 
     return {
-      content: content ? {
+      content: content ? canonicalizeHomepageImages({
         eyebrow: content.eyebrow,
         headline: content.headline,
         subheadline: content.subheadline,
@@ -67,7 +68,7 @@ export class CatalogService {
         promiseTwoTitle: content.promiseTwoTitle,
         promiseTwoText: content.promiseTwoText,
         updatedAt: content.updatedAt.toISOString(),
-      } : null,
+      }) : null,
       reviews: reviews.map(review => ({
         id: review.id,
         rating: review.rating,

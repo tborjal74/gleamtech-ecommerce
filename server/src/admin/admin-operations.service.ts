@@ -2,6 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { OrderStatus, PaymentStatus, Prisma, UserRole } from '@prisma/client';
 
 import { ApiError } from '../common/api-error.js';
+import { canonicalizeHomepageImages } from '../common/homepage-assets.js';
 import { minorToAmount } from '../common/money.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { ProductImageStorageService, type UploadedImageFile } from '../uploads/product-image-storage.service.js';
@@ -28,15 +29,16 @@ export class AdminOperationsService {
   }
 
   async updateHomepageContent(adminId: string, dto: UpdateHomepageContentDto) {
+    const input = canonicalizeHomepageImages(dto);
     const content = await this.prisma.homepageContent.upsert({
       where: { id: 'home' },
       update: {
-        ...dto,
+        ...input,
         updatedById: adminId,
       },
       create: {
         id: 'home',
-        ...dto,
+        ...input,
         updatedById: adminId,
       },
     });
@@ -422,7 +424,7 @@ export class AdminOperationsService {
     promiseTwoText: string;
     updatedAt: Date;
   }) {
-    return {
+    return canonicalizeHomepageImages({
       eyebrow: content.eyebrow,
       headline: content.headline,
       subheadline: content.subheadline,
@@ -439,7 +441,7 @@ export class AdminOperationsService {
       promiseTwoTitle: content.promiseTwoTitle,
       promiseTwoText: content.promiseTwoText,
       updatedAt: content.updatedAt.toISOString(),
-    };
+    });
   }
 
   private presentPromo(promo: {

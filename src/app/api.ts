@@ -5,6 +5,47 @@ const asset = (filename: string) => new URL(`../../assets/${filename}`, import.m
 const SESSION_TOKEN_STORAGE_KEY = "gleamtech_session_token";
 const ENABLE_BEARER_SESSION_FALLBACK = import.meta.env.VITE_ENABLE_BEARER_SESSION_FALLBACK === "true";
 
+const BUNDLED_WEBP_ASSETS = [
+  "blissbright.webp",
+  "gleamfresh.webp",
+  "gleamglow.webp",
+  "gleamhush.webp",
+  "gleamkiss.webp",
+  "gleamtech-main-logo.webp",
+  "gleamwhite.webp",
+  "hero-image-1.webp",
+  "puregleam-kalamansi.webp",
+  "puregleam-lemon.webp",
+  "sub-hero-image-2.webp",
+  "sub-hero-image-3.webp",
+  "ultrabright.webp",
+  "whitelush.webp",
+] as const;
+
+function canonicalBundledAssetName(image: string): string | null {
+  let pathname = image;
+  try {
+    pathname = new URL(image, "https://gleamtech.local").pathname;
+  } catch {
+    undefined;
+  }
+  if (!pathname.startsWith("/assets/")) return null;
+  let filename = pathname.split("/").pop() ?? "";
+  try {
+    filename = decodeURIComponent(filename);
+  } catch {
+    return null;
+  }
+  for (const canonicalName of BUNDLED_WEBP_ASSETS) {
+    const stem = canonicalName.slice(0, -".webp".length);
+    const isExactLegacyName = filename === `${stem}.png`;
+    const isCanonicalName = filename === canonicalName;
+    const isViteHashedName = filename.startsWith(`${stem}-`) && (filename.endsWith(".png") || filename.endsWith(".webp"));
+    if (isExactLegacyName || isCanonicalName || isViteHashedName) return canonicalName;
+  }
+  return null;
+}
+
 export interface PublicUser {
   id: string;
   email: string;
@@ -411,8 +452,10 @@ function clearSessionToken() {
   }
 }
 
-function normalizeImageUrl(image: string): string {
+export function resolveImageUrl(image: string): string {
   if (!image) return image;
+  const bundledAssetName = canonicalBundledAssetName(image);
+  if (bundledAssetName) return asset(bundledAssetName);
   if (image.startsWith("assets/")) return asset(image.replace("assets/", ""));
   if (image.startsWith("/assets/")) return asset(image.replace("/assets/", ""));
   const uploadedProductImage = image.match(/^\/uploads\/products\/([^/]+)$/);
@@ -428,6 +471,8 @@ function normalizeImageUrl(image: string): string {
   }
   return image;
 }
+
+const normalizeImageUrl = resolveImageUrl;
 
 function normalizeProduct(product: Product): Product {
   const image = normalizeImageUrl(product.image);
@@ -927,24 +972,21 @@ export const api = {
     return requestText(`/api/admin/reports.csv${query}`);
   },
   async adminHomepage() {
-    const response = await request<{ content: HomepageContent }>("/api/admin/homepage");
-    return { content: normalizeHomepageContent(response.content) };
+    return request<{ content: HomepageContent }>("/api/admin/homepage");
   },
   async adminUpdateHomepage(input: HomepageContentInput) {
-    const response = await request<{ content: HomepageContent }>("/api/admin/homepage", {
+    return request<{ content: HomepageContent }>("/api/admin/homepage", {
       method: "PATCH",
       body: JSON.stringify(input),
     });
-    return { content: normalizeHomepageContent(response.content) };
   },
   async adminUploadHomepageImage(slot: "heroImage" | "subHeroImageLeft" | "subHeroImageRight", file: File) {
     const formData = new FormData();
     formData.append("image", file);
-    const response = await request<{ content: HomepageContent }>(`/api/admin/homepage/images/${slot}`, {
+    return request<{ content: HomepageContent }>(`/api/admin/homepage/images/${slot}`, {
       method: "POST",
       body: formData,
     });
-    return { content: normalizeHomepageContent(response.content) };
   },
   adminPromos(query = "") {
     return request<{ promos: PromoCode[]; pagination: Pagination }>(`/api/admin/promos${query}`);

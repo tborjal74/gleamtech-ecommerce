@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import {
   api,
   ApiClientError,
+  resolveImageUrl,
   type AdminActivityLog,
   type AdminCustomer,
   type HomepageContent,
@@ -742,6 +743,14 @@ const HOME_IMAGE_FIELDS: Array<{ key: HomepageImageField; label: string }> = [
   { key: "subHeroImageRight", label: "Right sub-hero image" },
 ];
 
+function homepageImagePreviews(content: HomepageContent): Record<HomepageImageField, string> {
+  return {
+    heroImage: resolveImageUrl(content.heroImage),
+    subHeroImageLeft: resolveImageUrl(content.subHeroImageLeft),
+    subHeroImageRight: resolveImageUrl(content.subHeroImageRight),
+  };
+}
+
 function HomepagePanel({ onStoreContentChanged }: { onStoreContentChanged?: () => Promise<void> }) {
   const [content, setContent] = useState<HomepageContent | null>(null);
   const [form, setForm] = useState<HomepageContentInput | null>(null);
@@ -762,11 +771,7 @@ function HomepagePanel({ onStoreContentChanged }: { onStoreContentChanged?: () =
         setContent(result.content);
         const { updatedAt, ...input } = result.content;
         setForm(input);
-        setImagePreviews({
-          heroImage: result.content.heroImage,
-          subHeroImageLeft: result.content.subHeroImageLeft,
-          subHeroImageRight: result.content.subHeroImageRight,
-        });
+        setImagePreviews(homepageImagePreviews(result.content));
       })
       .catch(error => toast.error(apiMessage(error)))
       .finally(() => setLoading(false));
@@ -785,12 +790,13 @@ function HomepagePanel({ onStoreContentChanged }: { onStoreContentChanged?: () =
         setUploadingImage(field.key);
         const uploaded = await api.adminUploadHomepageImage(field.key, file);
         nextForm = { ...nextForm, [field.key]: uploaded.content[field.key] };
-        setImagePreviews(prev => ({ ...prev, [field.key]: uploaded.content[field.key] }));
+        setImagePreviews(prev => ({ ...prev, [field.key]: resolveImageUrl(uploaded.content[field.key]) }));
       }
       const result = await api.adminUpdateHomepage(nextForm);
       setContent(result.content);
       const { updatedAt, ...input } = result.content;
       setForm(input);
+      setImagePreviews(homepageImagePreviews(result.content));
       setPendingImages({});
       toast.success("Homepage content updated");
       await onStoreContentChanged?.().catch(() => undefined);

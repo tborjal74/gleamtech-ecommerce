@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, Param, Post, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 
 import type { AuthenticatedRequest } from '../authentication/auth.types.js';
@@ -67,6 +67,7 @@ export class HomepageController {
   constructor(private readonly catalogService: CatalogService) {}
 
   @Get()
+  @Header('Cache-Control', 'no-store')
   getHomepageContent() {
     return this.catalogService.homepageContent();
   }

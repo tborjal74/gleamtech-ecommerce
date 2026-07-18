@@ -127,22 +127,26 @@ export function HomePage({ onAddToCart, onViewProduct, onNavigate, wishlist, onT
           {/* Hero images collage */}
           <div className="relative hidden lg:grid grid-cols-2 gap-3 h-[460px]">
             <div className="col-span-2 rounded-2xl overflow-hidden shadow-lg" style={{ height: "280px" }}>
-              <img
+              <HomepageImage
                 src={home.heroImage}
+                fallback={DEFAULT_HOME_CONTENT.heroImage}
                 alt="Gleamtech cleaning essentials"
                 className="w-full h-full object-cover"
+                eager
               />
             </div>
             <div className="rounded-2xl overflow-hidden shadow-md">
-              <img
+              <HomepageImage
                 src={home.subHeroImageLeft}
+                fallback={DEFAULT_HOME_CONTENT.subHeroImageLeft}
                 alt="Gleamtech product care"
                 className="w-full h-full object-cover"
               />
             </div>
             <div className="rounded-2xl overflow-hidden shadow-md">
-              <img
+              <HomepageImage
                 src={home.subHeroImageRight}
+                fallback={DEFAULT_HOME_CONTENT.subHeroImageRight}
                 alt="Gleamtech home cleaning products"
                 className="w-full h-full object-cover"
               />
@@ -348,6 +352,39 @@ function CategoryThumbnail({ src, fallback, alt }: { src: string; fallback: stri
       src={imageSrc}
       alt={alt}
       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+      onError={() => {
+        if (imageSrc !== fallback) setImageSrc(fallback);
+      }}
+    />
+  );
+}
+
+function HomepageImage({
+  src,
+  fallback,
+  alt,
+  className,
+  eager = false,
+}: {
+  src: string;
+  fallback: string;
+  alt: string;
+  className: string;
+  eager?: boolean;
+}) {
+  const [imageSrc, setImageSrc] = useState(src || fallback);
+
+  React.useEffect(() => {
+    setImageSrc(src || fallback);
+  }, [fallback, src]);
+
+  return (
+    <img
+      src={imageSrc}
+      alt={alt}
+      className={className}
+      decoding="async"
+      loading={eager ? "eager" : "lazy"}
       onError={() => {
         if (imageSrc !== fallback) setImageSrc(fallback);
       }}
