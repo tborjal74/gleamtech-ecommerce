@@ -331,6 +331,34 @@ export class AdminProductsService {
     return { image };
   }
 
+  async downloadImage(productId: string, imageId: string) {
+    const image = await this.prisma.productImage.findFirst({
+      where: { id: imageId, productId },
+      select: { storageKey: true, url: true, filename: true, mimeType: true },
+    });
+    if (!image) {
+      throw new ApiError(HttpStatus.NOT_FOUND, 'PRODUCT_NOT_FOUND', 'Product image was not found.', { productId, imageId });
+    }
+
+    const stored = await this.imageStorage.read(image.storageKey);
+    if (stored) return { ...stored, filename: image.filename ?? 'product-image' };
+
+    // Cloudinary-backed images are remote, so proxy the original bytes through
+    // the authenticated admin API and avoid browser-side CDN CORS restrictions.
+    if (/^https?:\/\//i.test(image.url)) {
+      const response = await fetch(image.url);
+      if (response.ok) {
+        return {
+          buffer: Buffer.from(await response.arrayBuffer()),
+          mimeType: image.mimeType || response.headers.get('content-type')?.split(';')[0] || 'application/octet-stream',
+          filename: image.filename ?? 'product-image',
+        };
+      }
+    }
+
+    throw new ApiError(HttpStatus.NOT_FOUND, 'PRODUCT_NOT_FOUND', 'Product image was not found.', { productId, imageId });
+  }
+
   async setPrimaryImage(adminId: string, productId: string, imageId: string) {
     const product = await this.findProduct(productId);
     const image = product.images.find(candidate => candidate.id === imageId);

@@ -7,10 +7,12 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UserRole } from '@prisma/client';
 
@@ -75,6 +77,18 @@ export class AdminProductsController {
     @Body('primary') primary?: string,
   ) {
     return this.productsService.uploadImage(auth.user.id, productId, file, primary === 'true' || primary === '1');
+  }
+
+  @Get(':productId/images/:imageId/download')
+  async downloadImage(@Param('productId') productId: string, @Param('imageId') imageId: string, @Res() response: Response) {
+    const image = await this.productsService.downloadImage(productId, imageId);
+    const filename = image.filename.replace(/[\r\n"]/g, '_') || 'product-image';
+    response
+      .setHeader('Content-Type', image.mimeType)
+      .setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+      .setHeader('Cache-Control', 'private, max-age=0, no-store')
+      .status(200)
+      .send(image.buffer);
   }
 
   @Delete(':productId/images/:imageId')

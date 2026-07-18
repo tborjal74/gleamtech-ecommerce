@@ -261,17 +261,16 @@ export function AdminListingsPage({ onNavigate, onProductsChanged }: { onNavigat
   const downloadListingImage = async (product: AdminProduct) => {
     const image = product.images.find(candidate => candidate.isPrimary) ?? product.images[0];
     const imageUrl = image?.url || product.primaryImageUrl;
-    if (!imageUrl) {
+    if (!imageUrl || !image) {
       toast.error("This listing does not have an image to download.");
       return;
     }
 
     setDownloadingProductId(product.id);
     try {
-      // Download the original response bytes instead of a rendered thumbnail.
-      const response = await fetch(imageUrl, { credentials: "same-origin" });
-      if (!response.ok) throw new Error(`Image request failed with status ${response.status}.`);
-      const blob = await response.blob();
+      // The API proxies the original bytes, avoiding browser-side CORS issues
+      // for Cloudinary while preserving the uploaded resolution.
+      const blob = await api.adminDownloadProductImage(product.id, image.id);
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = objectUrl;

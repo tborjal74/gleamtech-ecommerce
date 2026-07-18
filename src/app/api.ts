@@ -829,6 +829,9 @@ export const api = {
       { method: "POST", body: formData },
     );
   },
+  adminDownloadProductImage(productId: string, imageId: string) {
+    return requestBlob(`/api/admin/products/${productId}/images/${imageId}/download`);
+  },
   adminDeleteProductImage(productId: string, imageId: string) {
     return request<{ ok: true }>(`/api/admin/products/${productId}/images/${imageId}`, { method: "DELETE" });
   },
