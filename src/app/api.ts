@@ -898,6 +898,15 @@ export const api = {
     });
     return { content: normalizeHomepageContent(response.content) };
   },
+  async adminUploadHomepageImage(slot: "heroImage" | "subHeroImageLeft" | "subHeroImageRight", file: File) {
+    const formData = new FormData();
+    formData.append("image", file);
+    const response = await request<{ content: HomepageContent }>(`/api/admin/homepage/images/${slot}`, {
+      method: "POST",
+      body: formData,
+    });
+    return { content: normalizeHomepageContent(response.content) };
+  },
   adminPromos(query = "") {
     return request<{ promos: PromoCode[]; pagination: Pagination }>(`/api/admin/promos${query}`);
   },

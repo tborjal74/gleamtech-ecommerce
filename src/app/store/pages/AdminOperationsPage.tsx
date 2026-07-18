@@ -684,9 +684,6 @@ const HOME_FIELDS: Array<{ key: keyof HomepageContentInput; label: string; multi
   { key: "subheadline", label: "Subheadline", multiline: true },
   { key: "primaryCta", label: "Primary CTA" },
   { key: "secondaryCta", label: "Secondary CTA" },
-  { key: "heroImage", label: "Hero image URL" },
-  { key: "subHeroImageLeft", label: "Left sub-hero image URL" },
-  { key: "subHeroImageRight", label: "Right sub-hero image URL" },
   { key: "promoLabel", label: "Promo label" },
   { key: "promoHeadline", label: "Promo headline" },
   { key: "promoText", label: "Promo text", multiline: true },
@@ -696,11 +693,25 @@ const HOME_FIELDS: Array<{ key: keyof HomepageContentInput; label: string; multi
   { key: "promiseTwoText", label: "Promise 2 text", multiline: true },
 ];
 
+type HomepageImageField = "heroImage" | "subHeroImageLeft" | "subHeroImageRight";
+const HOME_IMAGE_FIELDS: Array<{ key: HomepageImageField; label: string }> = [
+  { key: "heroImage", label: "Hero image" },
+  { key: "subHeroImageLeft", label: "Left sub-hero image" },
+  { key: "subHeroImageRight", label: "Right sub-hero image" },
+];
+
 function HomepagePanel({ onStoreContentChanged }: { onStoreContentChanged?: () => Promise<void> }) {
   const [content, setContent] = useState<HomepageContent | null>(null);
   const [form, setForm] = useState<HomepageContentInput | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState<HomepageImageField | null>(null);
+  const [pendingImages, setPendingImages] = useState<Partial<Record<HomepageImageField, File>>>({});
+  const [imagePreviews, setImagePreviews] = useState<Record<HomepageImageField, string>>({
+    heroImage: "",
+    subHeroImageLeft: "",
+    subHeroImageRight: "",
+  });
 
   const load = useCallback(() => {
     setLoading(true);
@@ -709,6 +720,11 @@ function HomepagePanel({ onStoreContentChanged }: { onStoreContentChanged?: () =
         setContent(result.content);
         const { updatedAt, ...input } = result.content;
         setForm(input);
+        setImagePreviews({
+          heroImage: result.content.heroImage,
+          subHeroImageLeft: result.content.subHeroImageLeft,
+          subHeroImageRight: result.content.subHeroImageRight,
+        });
       })
       .catch(error => toast.error(apiMessage(error)))
       .finally(() => setLoading(false));
@@ -720,17 +736,34 @@ function HomepagePanel({ onStoreContentChanged }: { onStoreContentChanged?: () =
     if (!form) return;
     setSaving(true);
     try {
-      const result = await api.adminUpdateHomepage(form);
+      let nextForm = form;
+      for (const field of HOME_IMAGE_FIELDS) {
+        const file = pendingImages[field.key];
+        if (!file) continue;
+        setUploadingImage(field.key);
+        const uploaded = await api.adminUploadHomepageImage(field.key, file);
+        nextForm = { ...nextForm, [field.key]: uploaded.content[field.key] };
+        setImagePreviews(prev => ({ ...prev, [field.key]: uploaded.content[field.key] }));
+      }
+      const result = await api.adminUpdateHomepage(nextForm);
       setContent(result.content);
       const { updatedAt, ...input } = result.content;
       setForm(input);
+      setPendingImages({});
       toast.success("Homepage content updated");
       await onStoreContentChanged?.().catch(() => undefined);
     } catch (error) {
       toast.error(apiMessage(error));
     } finally {
+      setUploadingImage(null);
       setSaving(false);
     }
+  };
+
+  const chooseImage = (field: HomepageImageField, file: File | undefined) => {
+    if (!file) return;
+    setPendingImages(prev => ({ ...prev, [field]: file }));
+    setImagePreviews(prev => ({ ...prev, [field]: URL.createObjectURL(file) }));
   };
 
   if (loading || !form) return <TableShell loading={loading} empty={!form} emptyText="Homepage content unavailable." />;
@@ -755,6 +788,40 @@ function HomepagePanel({ onStoreContentChanged }: { onStoreContentChanged?: () =
             )}
           </label>
         ))}
+        <section className="grid gap-4 rounded-xl border border-border p-4 md:col-span-2">
+          <div>
+            <h3 className="font-semibold text-foreground">Homepage images</h3>
+            <p className="text-xs text-muted-foreground">Upload JPG, PNG, or WebP files. Images are stored persistently and appear live after saving.</p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {HOME_IMAGE_FIELDS.map(field => (
+              <div key={field.key} className="grid gap-2">
+                <span className="text-sm font-semibold text-foreground">{field.label}</span>
+                <div className="relative overflow-hidden rounded-xl border border-border bg-secondary">
+                  {imagePreviews[field.key] ? (
+                    <img src={imagePreviews[field.key]} alt={`${field.label} preview`} className="h-36 w-full object-cover" />
+                  ) : (
+                    <div className="flex h-36 items-center justify-center text-xs text-muted-foreground">No image selected</div>
+                  )}
+                  {uploadingImage === field.key && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/45 text-xs font-semibold text-white">Uploading...</div>
+                  )}
+                </div>
+                <label className="inline-flex h-10 cursor-pointer items-center justify-center rounded-xl border border-border px-3 text-sm font-semibold hover:bg-secondary has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
+                  Choose image
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    disabled={saving}
+                    className="sr-only"
+                    onChange={event => chooseImage(field.key, event.target.files?.[0])}
+                  />
+                </label>
+                {pendingImages[field.key] && <span className="text-xs text-muted-foreground">Ready to upload on save: {pendingImages[field.key]?.name}</span>}
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
     </section>
   );

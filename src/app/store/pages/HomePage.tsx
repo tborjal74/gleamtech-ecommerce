@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ArrowRight, Leaf, Truck, ShieldCheck, Star, Package, ChevronRight } from "lucide-react";
 import { ProductCard } from "../ProductCard";
 import { RatingStars, Badge, SectionHeader } from "../ui";
+import { fallbackProductImage } from "../productImages";
 import type { Product, Page } from "../types";
 import type { HomepageContent, ReviewSummary, StorefrontReview } from "../../api";
 
@@ -58,9 +59,10 @@ export function HomePage({ onAddToCart, onViewProduct, onNavigate, wishlist, onT
         name: product.category,
         count: (current?.count ?? 0) + 1,
         image: current?.image || product.image,
+        fallbackImage: current?.fallbackImage || fallbackProductImage(product),
       });
       return items;
-    }, new Map<string, { name: string; count: number; image: string }>()),
+    }, new Map<string, { name: string; count: number; image: string; fallbackImage: string }>()),
   ).map(([id, category], index) => ({ ...category, id, color: CATEGORY_COLORS[index % CATEGORY_COLORS.length] }));
   const benefits = [
     ...BASE_BENEFITS,
@@ -175,7 +177,7 @@ export function HomePage({ onAddToCart, onViewProduct, onNavigate, wishlist, onT
                 className="w-full aspect-square rounded-xl overflow-hidden"
                 style={{ background: cat.color }}
               >
-                <img src={cat.image} alt={cat.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                <CategoryThumbnail src={cat.image} fallback={cat.fallbackImage} alt={cat.name} />
               </div>
               <div>
                 <p className="font-semibold text-sm text-foreground">{cat.name}</p>
@@ -331,6 +333,25 @@ export function HomePage({ onAddToCart, onViewProduct, onNavigate, wishlist, onT
         </div>
       </section>}
     </main>
+  );
+}
+
+function CategoryThumbnail({ src, fallback, alt }: { src: string; fallback: string; alt: string }) {
+  const [imageSrc, setImageSrc] = useState(src || fallback);
+
+  React.useEffect(() => {
+    setImageSrc(src || fallback);
+  }, [fallback, src]);
+
+  return (
+    <img
+      src={imageSrc}
+      alt={alt}
+      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+      onError={() => {
+        if (imageSrc !== fallback) setImageSrc(fallback);
+      }}
+    />
   );
 }
 

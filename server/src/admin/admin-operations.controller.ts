@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Header, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Param, Patch, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UserRole } from '@prisma/client';
 
 import type { AuthenticatedRequest } from '../authentication/auth.types.js';
@@ -14,6 +15,7 @@ import { UpsertPromoCodeDto } from './dto/admin-promo.dto.js';
 import { UpdateHomepageContentDto } from './dto/homepage-content.dto.js';
 import { UpdateCustomerActiveDto } from './dto/update-customer-active.dto.js';
 import { UpdateInventoryDto } from './dto/update-inventory.dto.js';
+import type { UploadedImageFile } from '../uploads/product-image-storage.service.js';
 
 @Controller('api/admin')
 @UseGuards(SessionAuthGuard, RolesGuard)
@@ -102,5 +104,16 @@ export class AdminOperationsController {
   @UseGuards(CsrfGuard)
   updateHomepageContent(@CurrentAuth() auth: AuthenticatedRequest, @Body() dto: UpdateHomepageContentDto) {
     return this.operations.updateHomepageContent(auth.user.id, dto);
+  }
+
+  @Post('homepage/images/:slot')
+  @UseGuards(CsrfGuard)
+  @UseInterceptors(FileInterceptor('image', { limits: { fileSize: 5 * 1024 * 1024, files: 1 } }))
+  uploadHomepageImage(
+    @CurrentAuth() auth: AuthenticatedRequest,
+    @Param('slot') slot: string,
+    @UploadedFile() file: UploadedImageFile,
+  ) {
+    return this.operations.uploadHomepageImage(auth.user.id, slot, file);
   }
 }

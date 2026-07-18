@@ -4,6 +4,7 @@ import { OrderStatus, PaymentStatus, Prisma, UserRole } from '@prisma/client';
 import { ApiError } from '../common/api-error.js';
 import { minorToAmount } from '../common/money.js';
 import { PrismaService } from '../database/prisma.service.js';
+import { ProductImageStorageService, type UploadedImageFile } from '../uploads/product-image-storage.service.js';
 import type { UpsertPromoCodeDto } from './dto/admin-promo.dto.js';
 import { AdminActivityService } from './admin-activity.service.js';
 import type { AdminPageQueryDto, AdminReportQueryDto } from './dto/admin-shared-query.dto.js';
@@ -14,6 +15,7 @@ export class AdminOperationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly activity: AdminActivityService,
+    private readonly imageStorage: ProductImageStorageService,
   ) {}
 
   async homepageContent() {
@@ -45,6 +47,32 @@ export class AdminOperationsService {
       entityId: 'home',
       description: 'Updated homepage content',
       metadata: { headline: content.headline },
+    });
+    return { content: this.presentHomepageContent(content) };
+  }
+
+  async uploadHomepageImage(adminId: string, slot: string, file: UploadedImageFile) {
+    const imageFields = new Set(['heroImage', 'subHeroImageLeft', 'subHeroImageRight']);
+    if (!imageFields.has(slot)) {
+      throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', 'Choose a valid homepage image slot.');
+    }
+    if (!file) {
+      throw new ApiError(HttpStatus.BAD_REQUEST, 'PRODUCT_IMAGE_INVALID', 'Upload a homepage image.');
+    }
+
+    const stored = await this.imageStorage.store(file);
+    const content = await this.prisma.homepageContent.upsert({
+      where: { id: 'home' },
+      update: { [slot]: stored.url, updatedById: adminId },
+      create: { id: 'home', [slot]: stored.url, updatedById: adminId },
+    });
+    await this.activity.record({
+      adminId,
+      action: 'homepage.image_uploaded',
+      entityType: 'homepage',
+      entityId: 'home',
+      description: `Uploaded homepage image for ${slot}`,
+      metadata: { slot, storageProvider: stored.storageProvider },
     });
     return { content: this.presentHomepageContent(content) };
   }
