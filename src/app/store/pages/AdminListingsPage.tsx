@@ -270,13 +270,26 @@ export function AdminListingsPage({ onNavigate, onProductsChanged }: { onNavigat
     try {
       // Prefer the uploaded image so newly created listings download their
       // Cloudinary/local original. Legacy listings fall back to bundled assets.
-      const blob = image
-        ? await api.adminDownloadProductImage(product.id, image.id)
-        : await (async () => {
-          const response = await fetch(assetUrl!, { credentials: "same-origin" });
-          if (!response.ok) throw new Error(`Asset request failed with status ${response.status}.`);
-          return response.blob();
-        })();
+      let blob: Blob;
+      try {
+        blob = image
+          ? await api.adminDownloadProductImage(product.id, image.id)
+          : await (async () => {
+            const response = await fetch(assetUrl!, { credentials: "same-origin" });
+            if (!response.ok) throw new Error(`Asset request failed with status ${response.status}.`);
+            return response.blob();
+          })();
+      } catch (primaryError) {
+        if (!image || !assetUrl) throw primaryError;
+        console.warn("Uploaded listing image unavailable; downloading bundled asset instead.", {
+          productId: product.id,
+          imageId: image.id,
+          error: primaryError,
+        });
+        const response = await fetch(assetUrl, { credentials: "same-origin" });
+        if (!response.ok) throw primaryError;
+        blob = await response.blob();
+      }
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = objectUrl;
