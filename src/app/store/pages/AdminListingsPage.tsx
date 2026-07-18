@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { api, ApiClientError, type AdminProduct, type AdminProductInput } from "../../api";
 import { formatCurrency } from "../currency";
 import type { Page } from "../types";
-import { fallbackProductImage } from "../productImages";
+import { assetProductImage, fallbackProductImage } from "../productImages";
 
 type ListingForm = {
   sku: string;
@@ -260,27 +260,33 @@ export function AdminListingsPage({ onNavigate, onProductsChanged }: { onNavigat
 
   const downloadListingImage = async (product: AdminProduct) => {
     const image = product.images.find(candidate => candidate.isPrimary) ?? product.images[0];
-    const imageUrl = image?.url || product.primaryImageUrl;
-    if (!imageUrl || !image) {
+    const assetUrl = assetProductImage(product);
+    if (!image && !assetUrl) {
       toast.error("This listing does not have an image to download.");
       return;
     }
 
     setDownloadingProductId(product.id);
     try {
-      // The API proxies the original bytes, avoiding browser-side CORS issues
-      // for Cloudinary while preserving the uploaded resolution.
-      const blob = await api.adminDownloadProductImage(product.id, image.id);
+      // Prefer the uploaded image so newly created listings download their
+      // Cloudinary/local original. Legacy listings fall back to bundled assets.
+      const blob = image
+        ? await api.adminDownloadProductImage(product.id, image.id)
+        : await (async () => {
+          const response = await fetch(assetUrl!, { credentials: "same-origin" });
+          if (!response.ok) throw new Error(`Asset request failed with status ${response.status}.`);
+          return response.blob();
+        })();
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = objectUrl;
-      link.download = downloadFilename(product, image?.mimeType || blob.type);
+      link.download = downloadFilename(product, blob.type);
       document.body.appendChild(link);
       link.click();
       link.remove();
       URL.revokeObjectURL(objectUrl);
     } catch (error) {
-      console.error("Failed to download listing image", { productId: product.id, imageUrl, error });
+      console.error("Failed to download listing image", { productId: product.id, imageUrl: image?.url || assetUrl, error });
       toast.error("The listing image could not be downloaded. Check that the image upload is still available.");
     } finally {
       setDownloadingProductId(null);
@@ -434,7 +440,7 @@ export function AdminListingsPage({ onNavigate, onProductsChanged }: { onNavigat
                   <button onClick={() => openEdit(product)} className="inline-flex h-9 items-center gap-2 rounded-xl border border-border px-3 text-sm font-semibold hover:bg-secondary"><Edit3 size={14} />Edit</button>
                   <button
                     onClick={() => void downloadListingImage(product)}
-                    disabled={downloadingProductId === product.id || (!product.primaryImageUrl && product.images.length === 0)}
+                    disabled={downloadingProductId === product.id || (!product.images.length && !assetProductImage(product))}
                     title="Download original listing image"
                     className="inline-flex h-9 items-center gap-2 rounded-xl border border-border px-3 text-sm font-semibold hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
                   >
