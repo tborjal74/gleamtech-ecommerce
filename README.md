@@ -3,16 +3,17 @@
 
   Gleamtech E-Commerce is an online platform for browsing and ordering cleaning solutions from Gleamtech. The site allows customers to view available products, check product details, place orders, and choose a preferred delivery or pickup option.
 
-  The platform is designed to provide a simple and convenient shopping experience for customers while giving administrators the tools needed to manage product listings, track orders, monitor sales, and maintain store operations efficiently.
+  The platform is designed to provide a simple and convenient shopping experience for customers while giving administrators the tools needed to manage product listings, track orders, monitor sales, and maintain store operations efficiently. 
 
 ## Key Features
 
   - Product catalog for Gleamtech cleaning solutions
   - Customer account registration and login
   - Shopping cart and order placement
-  - Delivery and pickup order options
+  - Efficient Delivery and pickup order options
   - Admin management for products, orders, and listings
   - Sales and order tracking for business insights
+
 
 ## Tech Stack
 
